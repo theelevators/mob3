@@ -25,6 +25,7 @@ import {
   WasmMemoryArena,
   type WasmMemoryArenaOptions,
 } from "./storage/wasm_memory.js";
+import { transformPropagation } from "./transform_propagate.js";
 
 export type AppRunner = (app: App) => void | Promise<void>;
 
@@ -87,6 +88,7 @@ export class App {
 
   constructor(options: AppOptions = {}) {
     this.world.insertResource(Time, createTime());
+    this.addSystem(PostUpdate, transformPropagation);
     if (options.wasmArena) {
       const opts =
         options.wasmArena === true
@@ -188,6 +190,7 @@ export class App {
   /** Synchronous frame — always uses the sequential executor. */
   update(deltaSeconds: number): void {
     this.assertNotDisposed();
+    this.world.beginFrame();
     this.ensureStartupSync();
 
     const time = this.world.resource(Time);
@@ -231,6 +234,7 @@ export class App {
     }
     this.frameLock = true;
     try {
+      this.world.beginFrame();
       await this.ensureStartupAsync();
 
       const time = this.world.resource(Time);

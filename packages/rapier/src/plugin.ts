@@ -1,5 +1,6 @@
 import {
   Transform,
+  Parent,
   FixedUpdate,
   PendingDespawn,
   system,
@@ -29,6 +30,8 @@ export type RapierPluginOptions = {
  * - kinematicPosition: Gameplay → Transform → Rapier (write)
  * - dynamic: Rapier → Transform (read after step)
  * - fixed: set once at creation
+ *
+ * Phase 9: dynamic rigid bodies must be hierarchy roots (no Parent).
  */
 export function RapierPlugin(options: RapierPluginOptions = {}): Plugin {
   const gravity = options.gravity ?? { x: 0, y: -9.81, z: 0 };
@@ -56,8 +59,11 @@ export function RapierPlugin(options: RapierPluginOptions = {}): Plugin {
       app.insertResource(PhysicsWorld, physics);
 
       app.addSystem(FixedUpdate, ensurePhysicsBodies);
-      app.addSystem(FixedUpdate, writeKinematicTransforms, {
+      app.addSystem(FixedUpdate, enforceDynamicBodyRoots, {
         after: ensurePhysicsBodies,
+      });
+      app.addSystem(FixedUpdate, writeKinematicTransforms, {
+        after: enforceDynamicBodyRoots,
       });
       app.addSystem(FixedUpdate, stepPhysics, {
         after: writeKinematicTransforms,
@@ -84,10 +90,27 @@ export function RapierPlugin(options: RapierPluginOptions = {}): Plugin {
   };
 }
 
+/** Phase 9: dynamic bodies cannot participate in ECS hierarchy. */
+export const enforceDynamicBodyRoots = system({
+  name: "enforceDynamicBodyRoots",
+  access: {
+    read: [RigidBody, Parent],
+  },
+  run(world) {
+    for (const [entity, rb] of world.query(RigidBody, Parent)) {
+      if (rb.kind === "dynamic") {
+        throw new Error(
+          `Dynamic rigid body entity ${entity} cannot be parented (Phase 9 restriction). Keep dynamics as roots, or use kinematic bodies.`,
+        );
+      }
+    }
+  },
+});
+
 export const ensurePhysicsBodies = system({
   name: "ensurePhysicsBodies",
   access: {
-    read: [Transform, RigidBody, PhysicsCollider, HasPhysicsBody],
+    read: [Transform, RigidBody, PhysicsCollider, HasPhysicsBody, Parent],
     resources: { write: [PhysicsWorld] },
     commands: true,
   },
@@ -99,6 +122,12 @@ export const ensurePhysicsBodies = system({
       PhysicsCollider,
     )) {
       if (world.has(entity, HasPhysicsBody)) continue;
+
+      if (rb.kind === "dynamic" && world.has(entity, Parent)) {
+        throw new Error(
+          `Dynamic rigid body entity ${entity} cannot be parented (Phase 9 restriction).`,
+        );
+      }
 
       const desc =
         rb.kind === "fixed"
@@ -177,10 +206,11 @@ export const readDynamicTransforms = system({
   },
   run(world) {
     const pw = requirePhysics(world);
-    for (const [entity, transform, rb] of world.query(Transform, RigidBody)) {
+    for (const [entity, , rb] of world.query(Transform, RigidBody)) {
       if (rb.kind !== "dynamic") continue;
       const body = pw.bodies.get(entity);
       if (!body) continue;
+      const transform = world.getMut(entity, Transform)!;
       const t = body.translation();
       transform.x = t.x;
       transform.y = t.y;

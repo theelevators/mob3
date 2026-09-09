@@ -14,6 +14,7 @@ export { initRapier, isRapierReady, RAPIER } from "./init.js";
 
 export {
   RapierPlugin,
+  enforceDynamicBodyRoots,
   ensurePhysicsBodies,
   writeKinematicTransforms,
   stepPhysics,

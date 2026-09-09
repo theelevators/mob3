@@ -224,6 +224,10 @@ export function runWasmSystemSync(world: World, meta: WasmSystemMeta): void {
   if (result.status === "error") {
     throw new Error(result.error ?? `WASM system '${meta.name}' failed`);
   }
+  // Shared WASM memory writes bypass per-row ticks
+  for (const type of meta.access.componentWrite) {
+    world.markStoreChanged(type);
+  }
 }
 
 /**
