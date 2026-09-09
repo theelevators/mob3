@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mob3 — Animation Lab</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #12151a; color: #d8dde5;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif; overflow: hidden; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #panel { position: fixed; top: 0; right: 0; width: min(380px, 100%); height: 100%;
+        overflow: auto; background: rgba(12,14,18,0.94); border-left: 1px solid #2a3340;
+        padding: 1rem; box-sizing: border-box; font-size: 0.8rem; }
+      h1 { font-size: 1rem; margin: 0 0 0.4rem; }
+      p { margin: 0 0 0.75rem; opacity: 0.85; }
+      .row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.35rem 0; }
+      button { padding: 0.35rem 0.5rem; background: #1c2430; color: #d8dde5;
+        border: 1px solid #3a4658; cursor: pointer; }
+      button:hover { background: #273142; }
+      button.active { outline: 1px solid #7aa2d4; }
+      pre { white-space: pre-wrap; background: #0e1218; padding: 0.5rem;
+        border: 1px solid #2a3340; min-height: 8rem; }
+      label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <aside id="panel">
+      <h1>Animation Lab</h1>
+      <p>One Character asset → independent instances. Sword follows RightHand.</p>
+      <label>Selected instance</label>
+      <div class="row" id="sel"></div>
+      <label>Clip</label>
+      <div class="row">
+        <button type="button" data-act="clip" data-v="Idle">Idle</button>
+        <button type="button" data-act="clip" data-v="Walk">Walk</button>
+        <button type="button" data-act="clip" data-v="Run">Run</button>
+      </div>
+      <label>Playback</label>
+      <div class="row">
+        <button type="button" data-act="pause">Pause</button>
+        <button type="button" data-act="resume">Resume</button>
+        <button type="button" data-act="stop">Stop</button>
+      </div>
+      <label>Speed</label>
+      <div class="row">
+        <button type="button" data-act="speed" data-v="0.5">0.5×</button>
+        <button type="button" data-act="speed" data-v="1">1×</button>
+        <button type="button" data-act="speed" data-v="2">2×</button>
+      </div>
+      <label>Loop / fade</label>
+      <div class="row">
+        <button type="button" data-act="loop" data-v="1">Loop</button>
+        <button type="button" data-act="loop" data-v="0">Once</button>
+        <button type="button" data-act="crossfade">Crossfade→Run</button>
+      </div>
+      <label>Instances / attachment</label>
+      <div class="row">
+        <button type="button" data-act="spawn">Spawn</button>
+        <button type="button" data-act="despawn">Despawn selected</button>
+        <button type="button" data-act="attach">Attach sword</button>
+        <button type="button" data-act="detach">Detach sword</button>
+      </div>
+      <pre id="log">ready</pre>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

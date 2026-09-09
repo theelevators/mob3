@@ -183,6 +183,17 @@ export function gltfDataFromObject3D(root: THREE.Object3D): GltfAssetData {
     geometries,
     materials,
     textures,
+    clips: [],
     disposeCounts: { geometry: 0, material: 0, texture: 0 },
   };
+}
+
+/** Build GltfAssetData including shared AnimationClips. */
+export function gltfDataFromObject3DWithClips(
+  root: THREE.Object3D,
+  clips: THREE.AnimationClip[],
+): GltfAssetData {
+  const data = gltfDataFromObject3D(root);
+  data.clips = clips;
+  return data;
 }

@@ -8,6 +8,8 @@ export type GltfAssetData = {
   geometries: Set<THREE.BufferGeometry>;
   materials: Set<THREE.Material>;
   textures: Set<THREE.Texture>;
+  /** Shared AnimationClip definitions (immutable for instances). */
+  clips: THREE.AnimationClip[];
   /** Instrumentation for disposal tests. */
   disposeCounts: {
     geometry: number;
@@ -57,8 +59,8 @@ function collectResources(
 }
 
 /**
- * Static GLTF loader via three.js GLTFLoader.parse.
- * Animation/skinning not supported for instantiation (Phase 11).
+ * GLTF loader via three.js GLTFLoader.parse.
+ * Populates `clips` for Phase 11 animation; static scenes keep clips=[].
  */
 export function createGltfLoader(
   opts: GltfLoaderOptions = {},
@@ -89,7 +91,6 @@ export function createGltfLoader(
       const gltf = await new Promise<Awaited<ReturnType<GLTFLoader["parseAsync"]>>>(
         (resolve, reject) => {
           try {
-            // parseAsync if available
             if (typeof loader.parseAsync === "function") {
               loader
                 .parseAsync(data as ArrayBuffer, "")
@@ -119,12 +120,14 @@ export function createGltfLoader(
       const materials = new Set<THREE.Material>();
       const textures = new Set<THREE.Texture>();
       collectResources(scene, { geometries, materials, textures });
+      const clips = [...(gltf.animations ?? [])];
 
       return {
         scene,
         geometries,
         materials,
         textures,
+        clips,
         disposeCounts: { geometry: 0, material: 0, texture: 0 },
       };
     },
@@ -144,6 +147,7 @@ export function createGltfLoader(
       value.geometries.clear();
       value.materials.clear();
       value.textures.clear();
+      value.clips.length = 0;
     },
   };
 }
