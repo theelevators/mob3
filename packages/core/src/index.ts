@@ -95,6 +95,29 @@ export {
 } from "./parallel/worker_system.js";
 
 export {
+  ABI_VERSION,
+  AbiError,
+  AbiIdRegistry,
+  AbiContext,
+  defineAbiSystem,
+  buildSystemInvocation,
+  InProcessAbiExecutor,
+  JsWorkerAbiExecutor,
+  abiSystem,
+  getAbiMeta,
+  isAbiSystem,
+  runAbiSystemLocalSync,
+  type SystemInvocation,
+  type ExecutionResult,
+  type AbiExecutor,
+  type AbiSystemModule,
+  type AbiSystemDefinition,
+  type AbiSystemMeta,
+  type StoreInvocation,
+  type AccessDescriptor,
+} from "./abi/index.js";
+
+export {
   parallelExecutor,
   ParallelExecutor,
   type ParallelExecutorOptions,

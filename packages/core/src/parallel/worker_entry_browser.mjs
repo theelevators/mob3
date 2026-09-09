@@ -1,6 +1,8 @@
 /**
- * Browser Worker entry — copy + shared SAB jobs.
+ * Browser Worker entry — Phase 5 copy, Phase 6 shared, Phase 7 ABI.
  */
+import { isAbiInvocation, runAbiExport } from "../abi/runtime.mjs";
+
 function columnsFromDesc(desc) {
   const bytesPerField = (kind) => (kind === "f64" ? 8 : 4);
   const make = (kind, buffer, offset, length) => {
@@ -40,9 +42,21 @@ self.onmessage = async (ev) => {
     }
     const t0 = performance.now();
     const mod = await import(/* @vite-ignore */ moduleUrl);
-    const fn = mod[exportName];
-    if (typeof fn !== "function") {
+    const exported = mod[exportName];
+    if (exported == null) {
       throw new Error(`Export '${exportName}' not found in ${moduleUrl}`);
+    }
+
+    if (isAbiInvocation(payload)) {
+      const result = runAbiExport(exported, payload);
+      self.postMessage({ type: "result", id, result });
+      return;
+    }
+
+    if (typeof exported !== "function") {
+      throw new Error(
+        `Export '${exportName}' must be a function for legacy worker payloads`,
+      );
     }
 
     let jobPayload = payload;
@@ -61,7 +75,7 @@ self.onmessage = async (ev) => {
       };
     }
 
-    const result = fn(jobPayload);
+    const result = exported(jobPayload);
     const execMs = performance.now() - t0;
     self.postMessage({
       type: "result",

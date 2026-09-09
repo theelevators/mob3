@@ -24,6 +24,17 @@ import {
   extractSharedWorkerPayload,
   type SharedWorkerPayload,
 } from "./shared_path.js";
+import { getAbiMeta, type AbiSystemMeta } from "../abi/abi_system.js";
+import { AbiIdRegistry } from "../abi/ids.js";
+import {
+  buildSystemInvocation,
+  collectTransferables,
+  commitAbiLocalStores,
+  storeCommitMapFromAccess,
+} from "../abi/build.js";
+import type { ExecutionResult, SystemInvocation } from "../abi/types.js";
+import { Time } from "../time.js";
+import { getPackedMeta } from "../storage/packed_component.js";
 
 export type ParallelTimings = {
   dispatchMs: number;
@@ -31,7 +42,7 @@ export type ParallelTimings = {
   transferMs: number;
   commitMs: number;
   barrierMs: number;
-  path?: "copy" | "shared" | "main";
+  path?: "copy" | "shared" | "main" | "abi-shared" | "abi-copy";
 };
 
 export type ParallelDataPath = "copy" | "shared" | "auto";
@@ -59,20 +70,38 @@ function writeNamesFor(meta: WorkerSystemMeta): Set<string> {
   return names;
 }
 
-function resolveDelay(meta: WorkerSystemMeta): number | undefined {
+function resolveDelay(
+  meta: WorkerSystemMeta | AbiSystemMeta,
+): number | undefined {
   const d = meta.delayMs;
   if (d === undefined) return undefined;
   return typeof d === "function" ? d() : d;
 }
 
+function canUseAbiShared(world: World, meta: AbiSystemMeta): boolean {
+  const types = [
+    ...meta.access.componentRead,
+    ...meta.access.componentWrite,
+  ];
+  let saw = false;
+  for (const c of types) {
+    if (c.isTag) continue;
+    const packed = getPackedMeta(c);
+    if (!packed?.shared) return false;
+    saw = true;
+  }
+  return saw;
+}
+
 /**
  * Executes a compiled plan using Phase 4 batches.
- * Chooses copy vs shared SAB path per worker system.
+ * ABI systems go through Execution ABI; legacy workerSystem keeps Phase 5/6 payloads.
  */
 export class ParallelExecutor {
   readonly pool: WorkerPool;
   readonly mode: PoolMode;
   readonly dataPath: ParallelDataPath;
+  readonly ids: AbiIdRegistry;
   private readonly batchTimings: ParallelTimings[] = [];
   private active = false;
 
@@ -80,6 +109,7 @@ export class ParallelExecutor {
     this.mode = options.mode ?? "preferred";
     this.dataPath = options.dataPath ?? "auto";
     this.pool = createWorkerPool(options);
+    this.ids = new AbiIdRegistry();
   }
 
   get usingWorkers(): boolean {
@@ -111,6 +141,11 @@ export class ParallelExecutor {
       }
 
       const commands = new Commands(world);
+      const time = world.hasResource(Time) ? world.resource(Time) : null;
+      const delta = time?.delta ?? 0;
+      const tick = time
+        ? Math.floor(time.elapsed / (time.fixedDelta || 1 / 60))
+        : 0;
 
       for (let bi = 0; bi < plan.batches.length; bi++) {
         const batch = plan.batches[bi]!;
@@ -119,49 +154,98 @@ export class ParallelExecutor {
         type Job = {
           id: symbol;
           fn: SystemFn;
-          meta: WorkerSystemMeta | null;
-          kind: "worker" | "main";
+          workerMeta: WorkerSystemMeta | null;
+          abiMeta: AbiSystemMeta | null;
+          kind: "abi" | "worker" | "main";
         };
         const jobs: Job[] = batch.map((id) => {
           const fn = fnById.get(id)!;
+          const ameta = getAbiMeta(fn);
+          if (ameta) {
+            // Share executor-level ID registry for stable IDs across ticks
+            ameta.ids = this.ids;
+            return {
+              id,
+              fn,
+              workerMeta: null,
+              abiMeta: ameta,
+              kind: "abi" as const,
+            };
+          }
           const wmeta = getWorkerMeta(fn);
           return {
             id,
             fn,
-            meta: wmeta ?? null,
-            kind: wmeta ? "worker" : "main",
+            workerMeta: wmeta ?? null,
+            abiMeta: null,
+            kind: wmeta ? ("worker" as const) : ("main" as const),
           };
         });
 
         type Prepared = {
           job: Job;
-          path: "copy" | "shared" | "main";
+          path: ParallelTimings["path"];
           payloadCtx?: ReturnType<typeof extractWorkerPayloadWithKeys>;
           sharedPayload?: SharedWorkerPayload;
-          result?: WorkerResult;
+          abiInvocation?: SystemInvocation;
+          result?: WorkerResult | ExecutionResult;
           error?: Error;
           dispatchMs: number;
           transferMs: number;
         };
 
         const prepared: Prepared[] = jobs.map((job) => {
-          if (job.kind !== "worker" || !job.meta) {
+          if (job.kind === "main") {
             return { job, path: "main", dispatchMs: 0, transferMs: 0 };
           }
           const t0 = nowMs();
+
+          if (job.kind === "abi" && job.abiMeta) {
+            const wantShared =
+              this.dataPath === "shared" ||
+              (this.dataPath === "auto" &&
+                canUseAbiShared(world, job.abiMeta));
+            if (this.dataPath === "shared" && !canUseAbiShared(world, job.abiMeta)) {
+              throw new Error(
+                `dataPath=shared but ABI system '${job.abiMeta.name}' lacks SharedPackedStorage accesses`,
+              );
+            }
+            const preferShared = wantShared && canUseAbiShared(world, job.abiMeta);
+            const abiInvocation = buildSystemInvocation({
+              world,
+              systemName: job.abiMeta.name,
+              access: job.abiMeta.access,
+              resourceKeys: job.abiMeta.resourceKeys,
+              tick,
+              delta,
+              scheduleName: plan.scheduleName ?? "schedule",
+              preferShared,
+              ids: this.ids,
+              delayMs: resolveDelay(job.abiMeta),
+            });
+            return {
+              job,
+              path: preferShared ? "abi-shared" : "abi-copy",
+              abiInvocation,
+              dispatchMs: 0,
+              transferMs: nowMs() - t0,
+            };
+          }
+
+          const meta = job.workerMeta!;
           const wantShared =
             this.dataPath === "shared" ||
-            (this.dataPath === "auto" && canUseSharedPath(world, job.meta));
-          if (this.dataPath === "shared" && !canUseSharedPath(world, job.meta)) {
+            (this.dataPath === "auto" && canUseSharedPath(world, meta));
+          if (this.dataPath === "shared" && !canUseSharedPath(world, meta)) {
             throw new Error(
-              `dataPath=shared but system '${job.meta.name}' lacks SharedPackedStorage accesses`,
+              `dataPath=shared but system '${meta.name}' lacks SharedPackedStorage accesses`,
             );
           }
-          if (wantShared && canUseSharedPath(world, job.meta)) {
+          if (wantShared && canUseSharedPath(world, meta)) {
             const sharedPayload = extractSharedWorkerPayload(
               world,
-              job.meta,
-              resolveDelay(job.meta),
+              meta,
+              resolveDelay(meta),
             );
             return {
               job,
@@ -173,10 +257,10 @@ export class ParallelExecutor {
           }
           const payloadCtx = extractWorkerPayloadWithKeys(
             world,
-            job.meta.access,
-            job.meta.resourceKeys,
-            job.meta.eventTypes,
-            resolveDelay(job.meta),
+            meta.access,
+            meta.resourceKeys,
+            meta.eventTypes,
+            resolveDelay(meta),
           );
           return {
             job,
@@ -191,7 +275,38 @@ export class ParallelExecutor {
           prepared.map(async (p) => {
             const tDispatch = nowMs();
             try {
-              if (p.job.kind === "worker" && p.job.meta) {
+              if (p.job.kind === "abi" && p.job.abiMeta && p.abiInvocation) {
+                if (this.pool.available) {
+                  const transfer = collectTransferables(p.abiInvocation);
+                  p.result = (await this.pool.runJob(
+                    p.job.abiMeta.moduleUrl,
+                    p.job.abiMeta.exportName,
+                    p.abiInvocation as unknown as Record<string, unknown>,
+                    p.job.abiMeta.name,
+                    transfer.length ? transfer : undefined,
+                  )) as unknown as ExecutionResult;
+                } else if (this.mode === "required") {
+                  throw new Error(
+                    `Workers unavailable (required) for ABI '${p.job.abiMeta.name}'`,
+                  );
+                } else {
+                  const t0 = nowMs();
+                  p.job.fn(world, commands);
+                  commands.flush();
+                  p.result = {
+                    abiVersion: 1,
+                    systemId: p.abiInvocation.system.id,
+                    status: "ok",
+                    execMs: nowMs() - t0,
+                  };
+                }
+                const er = p.result as ExecutionResult;
+                if (er.status === "error") {
+                  throw new Error(
+                    er.error ?? `ABI system '${p.job.abiMeta.name}' failed`,
+                  );
+                }
+              } else if (p.job.kind === "worker" && p.job.workerMeta) {
                 const payload: WorkerPayload | SharedWorkerPayload =
                   p.path === "shared"
                     ? p.sharedPayload!
@@ -199,25 +314,23 @@ export class ParallelExecutor {
 
                 if (this.pool.available) {
                   p.result = await this.pool.runJob(
-                    p.job.meta.moduleUrl,
-                    p.job.meta.exportName,
+                    p.job.workerMeta.moduleUrl,
+                    p.job.workerMeta.exportName,
                     payload as WorkerPayload,
-                    p.job.meta.name,
+                    p.job.workerMeta.name,
                   );
                 } else if (this.mode === "required") {
                   throw new Error(
-                    `Workers unavailable (required) for '${p.job.meta.name}'`,
+                    `Workers unavailable (required) for '${p.job.workerMeta.name}'`,
                   );
                 } else if (p.path === "shared") {
-                  // Fallback: run handler on main with reconstructed shared views
-                  // Prefer sequential SystemFn path for correctness
                   const t0 = nowMs();
                   p.job.fn(world, commands);
                   commands.flush();
                   p.result = { writes: [], execMs: nowMs() - t0 };
                 } else {
                   const t0 = nowMs();
-                  const result = p.job.meta.handler(p.payloadCtx!.payload);
+                  const result = p.job.workerMeta.handler(p.payloadCtx!.payload);
                   p.result = {
                     ...result,
                     execMs: result.execMs ?? nowMs() - t0,
@@ -226,16 +339,15 @@ export class ParallelExecutor {
 
                 if (p.path === "copy") {
                   validateWorkerResult(
-                    p.result,
-                    writeNamesFor(p.job.meta),
-                    p.job.meta.name,
+                    p.result as WorkerResult,
+                    writeNamesFor(p.job.workerMeta),
+                    p.job.workerMeta.name,
                   );
-                } else if (p.result.writes?.length) {
-                  // Shared path should not return undeclared component copies
+                } else if ((p.result as WorkerResult).writes?.length) {
                   validateWorkerResult(
-                    p.result,
-                    writeNamesFor(p.job.meta),
-                    p.job.meta.name,
+                    p.result as WorkerResult,
+                    writeNamesFor(p.job.workerMeta),
+                    p.job.workerMeta.name,
                   );
                 }
               } else {
@@ -259,18 +371,50 @@ export class ParallelExecutor {
 
         const tCommit = nowMs();
         for (const p of prepared) {
-          if (p.job.kind !== "worker" || !p.result || !p.job.meta) continue;
+          if (p.job.kind === "abi" && p.result && p.job.abiMeta && p.abiInvocation) {
+            const er = p.result as ExecutionResult;
+            if (p.path === "abi-copy" && er.localWrites?.length) {
+              commitAbiLocalStores(
+                world,
+                storeCommitMapFromAccess(p.job.abiMeta.access, this.ids),
+                er.localWrites,
+              );
+            }
+            if (er.events?.length) {
+              for (const batch of er.events) {
+                const et = p.job.abiMeta.eventTypes.find(
+                  (e) => (e.name ?? "Event") === batch.name,
+                );
+                if (!et) {
+                  throw new Error(
+                    `ABI system returned unknown event '${batch.name}'`,
+                  );
+                }
+                for (const payload of batch.payloads) {
+                  world.send(et, payload as never);
+                }
+              }
+            }
+            if (timings) {
+              timings.record(
+                p.job.abiMeta.id,
+                (er.execMs ?? 0) + p.transferMs,
+              );
+            }
+            continue;
+          }
+
+          if (p.job.kind !== "worker" || !p.result || !p.job.workerMeta) continue;
+          const wr = p.result as WorkerResult;
           if (p.path === "copy" && p.payloadCtx) {
-            commitWorkerWrites(world, p.result.writes, p.payloadCtx.ctx);
-            commitWorkerEvents(world, p.result.events, p.payloadCtx.ctx);
+            commitWorkerWrites(world, wr.writes, p.payloadCtx.ctx);
+            commitWorkerEvents(world, wr.events, p.payloadCtx.ctx);
           } else if (p.path === "shared") {
-            // Field data already in SAB; events still need merge if any
-            if (p.result.events?.length && p.payloadCtx) {
-              commitWorkerEvents(world, p.result.events, p.payloadCtx.ctx);
-            } else if (p.result.events?.length) {
-              // Build minimal event commit via world.send using meta.eventTypes
-              for (const batch of p.result.events) {
-                const et = p.job.meta.eventTypes.find(
+            if (wr.events?.length && p.payloadCtx) {
+              commitWorkerEvents(world, wr.events, p.payloadCtx.ctx);
+            } else if (wr.events?.length) {
+              for (const batch of wr.events) {
+                const et = p.job.workerMeta.eventTypes.find(
                   (e) => (e.name ?? "Event") === batch.name,
                 );
                 if (!et) {
@@ -286,25 +430,37 @@ export class ParallelExecutor {
           }
           if (timings) {
             timings.record(
-              p.job.meta.id,
-              (p.result.execMs ?? 0) + p.transferMs,
+              p.job.workerMeta.id,
+              (wr.execMs ?? 0) + p.transferMs,
             );
           }
         }
         const commitMs = nowMs() - tCommit;
         const barrierMs = nowMs() - barrierStart;
 
+        const pathHint = prepared.some((x) => x.path === "abi-shared")
+          ? "abi-shared"
+          : prepared.some((x) => x.path === "abi-copy")
+            ? "abi-copy"
+            : prepared.some((x) => x.path === "shared")
+              ? "shared"
+              : prepared.some((x) => x.path === "copy")
+                ? "copy"
+                : "main";
+
         this.batchTimings.push({
           dispatchMs: Math.max(...prepared.map((x) => x.dispatchMs), 0),
-          execMs: Math.max(...prepared.map((x) => x.result?.execMs ?? 0), 0),
+          execMs: Math.max(
+            ...prepared.map((x) => {
+              const r = x.result as { execMs?: number } | undefined;
+              return r?.execMs ?? 0;
+            }),
+            0,
+          ),
           transferMs: prepared.reduce((a, x) => a + x.transferMs, 0),
           commitMs,
           barrierMs,
-          path: prepared.some((x) => x.path === "shared")
-            ? "shared"
-            : prepared.some((x) => x.path === "copy")
-              ? "copy"
-              : "main",
+          path: pathHint,
         });
       }
     } finally {
