@@ -3,21 +3,30 @@ export const IS_COMPONENT_TYPE = Symbol.for("mob3.isComponentType");
 
 export type ComponentData = object | boolean | number | string | symbol;
 
+/**
+ * A component *instance* produced by `Position({ x: 1 })` / `Transform()`.
+ * Branded so `world.spawn(Transform(), ThreeObject(mesh))` typechecks
+ * without `as never`.
+ */
+export type ComponentInstance<T = unknown> = T & {
+  readonly [COMPONENT_TYPE]: ComponentType<T>;
+};
+
 export interface ComponentType<T = unknown> {
   readonly [IS_COMPONENT_TYPE]: true;
   readonly id: symbol;
   readonly defaults: T;
   readonly isTag: boolean;
   /** Create a component instance (tags ignore partial and return the tag sentinel). */
-  (partial?: T extends object ? Partial<T> : never): T;
-  create(partial?: T extends object ? Partial<T> : never): T;
+  (partial?: T extends object ? Partial<T> : never): ComponentInstance<T>;
+  create(partial?: T extends object ? Partial<T> : never): ComponentInstance<T>;
 }
 
 export type InferComponent<C> = C extends ComponentType<infer T> ? T : never;
 
 export type ComponentBundleItem =
   | ComponentType<unknown>
-  | { readonly [COMPONENT_TYPE]: ComponentType<unknown> };
+  | ComponentInstance;
 
 let componentSeq = 0;
 
@@ -53,9 +62,11 @@ function createComponentType<T>(defaults: T, isTag: boolean): ComponentType<T> {
         enumerable: false,
         configurable: true,
       });
+      return value as ComponentInstance<T>;
     }
 
-    return value;
+    // Tags / primitives: spawn via the type itself (`spawn(Player)`), not create().
+    return value as ComponentInstance<T>;
   }) as ComponentType<T>["create"];
 
   return factory;

@@ -222,6 +222,23 @@ export class World {
     return value;
   }
 
+  /**
+   * Borrow a component mutably, run `fn`, mark changed once.
+   * Returns false if the component is missing.
+   *
+   * Prefer this (or getMut) over `get` + field writes — plain `get` does not dirty.
+   */
+  mutate<C extends ComponentType>(
+    entity: Entity,
+    type: C,
+    fn: (value: InferComponent<C>) => void,
+  ): boolean {
+    const value = this.getMut(entity, type);
+    if (value === undefined) return false;
+    fn(value);
+    return true;
+  }
+
   markChanged(entity: Entity, type: ComponentType): void {
     if (!this.isAlive(entity)) return;
     this.changes.markChanged(entity, type);

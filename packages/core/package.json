@@ -1,16 +1,31 @@
 {
   "name": "mob3",
   "version": "0.1.0",
-  "description": "ECS application architecture for Three.js — without replacing Three.js",
+  "description": "ECS application architecture for Three.js \u2014 without replacing Three.js",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/browser.js",
+  "module": "./dist/browser.js",
+  "types": "./dist/browser.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "types": "./dist/browser.d.ts",
+      "browser": "./dist/browser.js",
+      "import": "./dist/browser.js",
+      "default": "./dist/browser.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./parallel": {
+      "types": "./dist/parallel/public.d.ts",
+      "import": "./dist/parallel/public.js"
+    },
+    "./abi": {
+      "types": "./dist/abi/public.d.ts",
+      "import": "./dist/abi/public.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",

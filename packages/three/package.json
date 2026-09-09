@@ -10,7 +10,20 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./plugin": {
+      "types": "./dist/plugin_public.d.ts",
+      "import": "./dist/plugin_public.js"
+    },
+    "./gltf": {
+      "types": "./dist/gltf_public.d.ts",
+      "import": "./dist/gltf_public.js"
+    },
+    "./animation": {
+      "types": "./dist/animation_public.d.ts",
+      "import": "./dist/animation_public.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",

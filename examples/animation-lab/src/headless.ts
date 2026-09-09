@@ -46,10 +46,10 @@ playAnimation(app.world, b, "Idle", { speed: 1, fadeDuration: 0 });
 playAnimation(app.world, c, "Walk", { speed: 0.5, fadeDuration: 0 });
 
 const sword = app.world.spawn(
-  Name({ value: "SwordA" }) as never,
-  Transform() as never,
-  GlobalTransform() as never,
-  BoneAttachment({ source: a, bone: "RightHand" }) as never,
+  Name({ value: "SwordA" }),
+  Transform(),
+  GlobalTransform(),
+  BoneAttachment({ source: a, bone: "RightHand" }),
 );
 
 for (let i = 0; i < 60; i++) app.update(1 / 60);

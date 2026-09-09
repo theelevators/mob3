@@ -5,6 +5,7 @@ import {
   Transform,
   type TransformData,
   type ComponentType,
+  type ComponentInstance,
 } from "mob3";
 import type { Object3D, Scene, WebGLRenderer, Camera, PerspectiveCamera } from "three";
 
@@ -20,8 +21,8 @@ export type ThreeObjectData = {
  * world.spawn(Transform(), ThreeObject(mesh));
  */
 function createThreeObjectType(): ComponentType<ThreeObjectData> & {
-  (object: Object3D): ThreeObjectData;
-  (partial?: Partial<ThreeObjectData>): ThreeObjectData;
+  (object: Object3D): ComponentInstance<ThreeObjectData>;
+  (partial?: Partial<ThreeObjectData>): ComponentInstance<ThreeObjectData>;
 } {
   const defaults: ThreeObjectData = {
     object: null as unknown as Object3D,
@@ -40,10 +41,10 @@ function createThreeObjectType(): ComponentType<ThreeObjectData> & {
       enumerable: false,
       configurable: true,
     });
-    return data;
+    return data as ComponentInstance<ThreeObjectData>;
   }) as ComponentType<ThreeObjectData> & {
-    (object: Object3D): ThreeObjectData;
-    (partial?: Partial<ThreeObjectData>): ThreeObjectData;
+    (object: Object3D): ComponentInstance<ThreeObjectData>;
+    (partial?: Partial<ThreeObjectData>): ComponentInstance<ThreeObjectData>;
   };
 
   Object.defineProperty(factory, IS_COMPONENT_TYPE, { value: true });
@@ -67,6 +68,8 @@ export const ThreeScene = resource<Scene>("ThreeScene");
 export const ThreeRenderer = resource<WebGLRenderer>("ThreeRenderer");
 export const ThreeCamera = resource<Camera>("ThreeCamera");
 
+export type ThreeSyncMode = "changed" | "always";
+
 export type ThreePluginOptions = {
   canvas?: HTMLCanvasElement;
   antialias?: boolean;
@@ -76,7 +79,16 @@ export type ThreePluginOptions = {
   createDefaultCamera?: boolean;
   clearColor?: number;
   autoResize?: boolean;
+  /**
+   * Transform sync strategy.
+   * - `"changed"` (default): only sync when GlobalTransform/Transform is dirty
+   * - `"always"`: sync every frame (small scenes; avoids get-vs-getMut footgun)
+   */
+  syncMode?: ThreeSyncMode;
 };
+
+/** Runtime sync mode resource — set by ThreePlugin from options. */
+export const ThreeSyncModeResource = resource<ThreeSyncMode>("ThreeSyncMode");
 
 export { Transform, type TransformData };
 export type { Object3D, Scene, WebGLRenderer, Camera, PerspectiveCamera };

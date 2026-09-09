@@ -114,3 +114,23 @@ npm run example:arena           # Three
 npm run example:canvas          # Canvas 2D
 npm run example:arena:headless  # no renderer
 ```
+
+## Install / entries (Phase 12 DX)
+
+```bash
+npm install mob3 @mob3/three three
+```
+
+| Import | What you get |
+|--------|----------------|
+| `mob3` | **Browser-safe** ECS (default) — no Node worker/`node:` pulls |
+| `mob3/parallel` | Workers + `installParallel(app)` |
+| `mob3/node` | Full Node entry |
+| `@mob3/three/plugin` | Renderer sync only |
+| `@mob3/three/gltf` | GLTF assets |
+| `@mob3/three/animation` | Animation mixer / bone attachments |
+
+Transform mutations: use `world.getMut`, `world.mutate`, or `setTranslation` / `setScale` — plain `get()` field writes do **not** mark dirty. For small scenes, `ThreePlugin({ syncMode: "always" })`.
+
+See `docs/phase-12-design.md`, `docs/cookbook-react-canvas.md`, and the BoxClub / msh-up feedback docs.
+

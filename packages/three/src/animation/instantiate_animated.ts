@@ -79,10 +79,10 @@ export function instantiateAnimatedGltf(
   if (sceneRes) sceneRes.add(cloned);
 
   const entity = world.spawn(
-    Name({ value: cloned.name }) as never,
-    Transform() as never,
-    GlobalTransform() as never,
-    ThreeObject(cloned) as never,
+    Name({ value: cloned.name }),
+    Transform(),
+    GlobalTransform(),
+    ThreeObject(cloned),
     AnimationPlayer({
       clip: opts.clip ?? "",
       playing: !!opts.clip,
@@ -90,13 +90,13 @@ export function instantiateAnimatedGltf(
       speed: 1,
       time: 0,
       fadeDuration: 0.25,
-    }) as never,
+    }),
     AssetInstanceRef({
       typeName: handle.typeName,
       key: handle.key,
       index: handle.index,
       generation: handle.generation,
-    }) as never,
+    }),
   );
 
   if (opts.parent != null) world.setParent(entity, opts.parent);
