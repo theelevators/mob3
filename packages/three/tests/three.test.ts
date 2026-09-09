@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { App, Startup, PreRender } from "mob3";
+import { App, Startup, PreRender, Transform } from "mob3";
 import * as THREE from "three";
 import {
   ThreePlugin,
-  Transform,
   ThreeObject,
   ThreeScene,
   syncTransforms,
@@ -56,5 +55,24 @@ describe("@mob3/three", () => {
     expect(mesh.position.z).toBeCloseTo(3);
     expect(mesh.rotation.y).toBeCloseTo(0.5);
     expect(mesh.scale.x).toBeCloseTo(2);
+  });
+
+  it("entities without ThreeObject are not synced", () => {
+    const mesh = new THREE.Mesh();
+    mesh.position.set(9, 9, 9);
+
+    const app = new App()
+      .addPlugin({
+        build(a) {
+          a.addSystem(PreRender, syncTransforms);
+        },
+      })
+      .addSystem(Startup, (world) => {
+        world.spawn(Transform({ x: 1, y: 2, z: 3 })); // no ThreeObject
+        world.spawn(Transform({ x: 4, y: 5, z: 6 }), ThreeObject(mesh));
+      });
+
+    app.update(1 / 60);
+    expect(mesh.position.x).toBeCloseTo(4);
   });
 });

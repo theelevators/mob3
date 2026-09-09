@@ -1,7 +1,11 @@
 import type { World } from "./world.js";
+import { Commands } from "./commands.js";
 
-/** A system is behavior operating against world state. */
-export type SystemFn = (world: World) => void;
+/**
+ * A system is behavior operating against world state.
+ * Structural mutations should go through `commands` and apply after the system returns.
+ */
+export type SystemFn = (world: World, commands: Commands) => void;
 
 export type ScheduleLabel = string | symbol;
 
@@ -38,11 +42,18 @@ export class Schedule {
     return this;
   }
 
+  /**
+   * Run all systems for a label.
+   * After each system: flush commands so later systems see structural changes.
+   * Event lifetime is owned by App (not cleared here).
+   */
   run(label: ScheduleLabel, world: World): void {
     const list = this.systemMap.get(label);
     if (!list) return;
+    const commands = new Commands(world);
     for (const system of list) {
-      system(world);
+      system(world, commands);
+      commands.flush();
     }
   }
 
@@ -50,7 +61,6 @@ export class Schedule {
     return this.systemMap.get(label) ?? [];
   }
 
-  /** Dev/DX: list registered schedules and system counts. */
   inspect(): Record<string, number> {
     const out: Record<string, number> = {};
     for (const [label, list] of this.systemMap) {

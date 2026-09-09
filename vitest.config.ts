@@ -14,5 +14,7 @@ export default defineConfig({
       "packages/*/tests/**/*.test.ts",
       "tests/**/*.test.ts",
     ],
+    // Mob Arena determinism test runs 2×10k ticks
+    testTimeout: 120_000,
   },
 });

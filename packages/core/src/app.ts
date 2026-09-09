@@ -84,6 +84,13 @@ export class App {
   /**
    * Advance the app by `deltaSeconds`.
    * Safe for tests and headless simulation.
+   *
+   * During FixedUpdate, `Time.delta` equals `Time.fixedDelta`.
+   *
+   * Event lifetime:
+   * - Cleared at the start of each FixedUpdate step (no cross-step replay).
+   * - Remaining events (e.g. from the last FixedUpdate) are visible to Update+.
+   * - Cleared again at the end of the frame.
    */
   update(deltaSeconds: number): void {
     this.ensureStartup();
@@ -94,10 +101,12 @@ export class App {
     this.schedule.run(PreUpdate, this.world);
 
     time.fixedAccumulator += time.delta;
-    // Spiral-of-death guard: at most a few fixed steps per frame.
+    const frameDelta = time.delta;
     let steps = 0;
     const maxSteps = 5;
     while (time.fixedAccumulator >= time.fixedDelta && steps < maxSteps) {
+      this.world.clearEvents();
+      time.delta = time.fixedDelta;
       this.schedule.run(FixedUpdate, this.world);
       time.fixedAccumulator -= time.fixedDelta;
       steps++;
@@ -105,6 +114,7 @@ export class App {
     if (steps === maxSteps) {
       time.fixedAccumulator = 0;
     }
+    time.delta = frameDelta;
 
     this.schedule.run(Update, this.world);
     this.schedule.run(PostUpdate, this.world);
@@ -112,11 +122,9 @@ export class App {
     this.schedule.run(Render, this.world);
     this.schedule.run(PostRender, this.world);
 
-    // Events survive one update boundary, then clear.
     this.world.clearEvents();
   }
 
-  /** Start the configured runner (browser rAF by default). */
   run(): this {
     this.ensureStartup();
     this.runner(this);
