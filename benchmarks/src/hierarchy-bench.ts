@@ -7,7 +7,6 @@ import {
   Transform,
   GlobalTransform,
   transformPropagation,
-  ChangeTracker,
 } from "mob3";
 
 function now() {
@@ -59,11 +58,17 @@ function entitiesWithTransform(w: World): number[] {
   return [...w.query(Transform)].map(([e]) => e);
 }
 
-function mutatePercent(w: World, entities: number[], pct: number): number {
-  const count = Math.max(1, Math.floor((entities.length * pct) / 100));
+/** Prefer leaves so 1% change does not flood via root. */
+function leafBiased(entities: number[], w: World): number[] {
+  const leaves = entities.filter((e) => w.children(e).length === 0);
+  return leaves.length > 0 ? leaves : entities;
+}
+
+function mutatePercent(w: World, pool: number[], pct: number): number {
+  const count = Math.max(1, Math.floor((pool.length * pct) / 100));
   w.beginFrame();
   for (let i = 0; i < count; i++) {
-    const e = entities[(i * 997) % entities.length]!;
+    const e = pool[(i * 997 + 13) % pool.length]!;
     w.getMut(e, Transform)!.x += 0.001;
   }
   return count;
@@ -78,16 +83,18 @@ function benchShape(
 ): void {
   const w = build(n);
   const ents = entitiesWithTransform(w);
-  // warmup
-  mutatePercent(w, ents, pct);
+  const pool = leafBiased(ents, w);
+  mutatePercent(w, pool, pct);
   propagate(w);
 
   let mutMs = 0;
   let propMs = 0;
   let changedGlobals = 0;
+  let dirtyPeak = 0;
   for (let i = 0; i < iters; i++) {
     const t0 = now();
-    mutatePercent(w, ents, pct);
+    mutatePercent(w, pool, pct);
+    dirtyPeak = Math.max(dirtyPeak, w.hierarchyDirtyCount());
     mutMs += now() - t0;
     const t1 = now();
     propagate(w);
@@ -105,6 +112,7 @@ function benchShape(
       (mutMs / iters).toFixed(3).padStart(8),
       (propMs / iters).toFixed(3).padStart(8),
       (changedGlobals / iters).toFixed(0).padStart(8),
+      String(dirtyPeak).padStart(8),
     ].join("  "),
   );
 }
@@ -139,12 +147,10 @@ function benchChangeOverhead(n: number): void {
     bareMs += now() - t1;
   }
 
-  const memEstimate =
-    n * 8 /* rough tick map entry */ * 2; /* changed+added maps */
+  const memEstimate = n * 8 * 2;
   console.log(
-    `\nchange-overhead n=${n}: getMut ${((trackMs / iters)).toFixed(3)}ms vs bare get ${((bareMs / iters)).toFixed(3)}ms; ~tick-map bytes≈${memEstimate}`,
+    `\nchange-overhead n=${n}: getMut ${(trackMs / iters).toFixed(3)}ms vs bare get ${(bareMs / iters).toFixed(3)}ms; ~tick-map bytes≈${memEstimate}`,
   );
-  void ChangeTracker;
 }
 
 console.log("=== Phase 9 hierarchy bench ===\n");
@@ -156,6 +162,7 @@ console.log(
     "mutMs".padStart(8),
     "propMs".padStart(8),
     "chgGlob".padStart(8),
+    "dirtyPk".padStart(8),
   ].join("  "),
 );
 
@@ -169,13 +176,14 @@ const builders: Array<[string, (n: number) => World]> = [
 
 for (const [name, build] of builders) {
   for (const n of sizes) {
-    // Deep 100k is extreme for chain alloc; still run but fewer iters
+    if (name === "deep" && n >= 100_000) {
+      console.log(
+        `${"deep".padEnd(10)}  ${String(n).padStart(6)}  skip (pathological depth)`,
+      );
+      continue;
+    }
     const iters = n >= 100_000 ? 3 : n >= 10_000 ? 8 : 20;
     for (const pct of pcts) {
-      if (name === "deep" && n >= 100_000 && pct === 100) {
-        // skip pathological: 100k depth * 100% mutate
-        continue;
-      }
       try {
         benchShape(name, build, n, pct, iters);
       } catch (e) {

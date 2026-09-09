@@ -5,9 +5,12 @@ import {
   App,
   Startup,
   Update,
+  PostUpdate,
+  PostRender,
   Name,
   Transform,
   GlobalTransform,
+  transformPropagation,
   type World,
   type Entity,
   type HierarchyPreserve,
@@ -125,14 +128,22 @@ function setupScene(world: World): void {
 
 function orbit(world: World, dt: number): void {
   if (!lab.planetA || !lab.planetB || !lab.moonA || !lab.moonB) return;
-  const pa = world.getMut(lab.planetA, Transform);
-  if (pa) pa.ry += dt * 0.35;
-  const pb = world.getMut(lab.planetB, Transform);
-  if (pb) pb.ry -= dt * 0.22;
-  const ma = world.getMut(lab.moonA, Transform);
-  if (ma) ma.ry += dt * 1.1;
-  const mb = world.getMut(lab.moonB, Transform);
-  if (mb) mb.ry += dt * 0.9;
+  if (world.isAlive(lab.planetA)) {
+    const pa = world.getMut(lab.planetA, Transform);
+    if (pa) pa.ry += dt * 0.35;
+  }
+  if (world.isAlive(lab.planetB)) {
+    const pb = world.getMut(lab.planetB, Transform);
+    if (pb) pb.ry -= dt * 0.22;
+  }
+  if (world.isAlive(lab.moonA)) {
+    const ma = world.getMut(lab.moonA, Transform);
+    if (ma) ma.ry += dt * 1.1;
+  }
+  if (world.isAlive(lab.moonB)) {
+    const mb = world.getMut(lab.moonB, Transform);
+    if (mb) mb.ry += dt * 0.9;
+  }
 }
 
 function refreshHud(world: World): void {
@@ -218,12 +229,19 @@ const app = new App()
   )
   .addSystem(Startup, setupScene)
   .addSystem(Update, (world) => {
-    const dt = 1 / 60;
-    if (!paused) orbit(world, dt);
-    lastChanged = 0;
-    for (const _ of world.query(GlobalTransform).changed(GlobalTransform)) {
-      lastChanged++;
-    }
+    if (!paused) orbit(world, 1 / 60);
+  })
+  .addSystem(
+    PostUpdate,
+    (world) => {
+      lastChanged = 0;
+      for (const _ of world.query(GlobalTransform).changed(GlobalTransform)) {
+        lastChanged++;
+      }
+    },
+    { after: transformPropagation },
+  )
+  .addSystem(PostRender, (world) => {
     refreshHud(world);
   });
 

@@ -544,8 +544,9 @@ export class World {
 
   /** @internal — drain dirty set for transformPropagation */
   consumeHierarchyDirty(): Set<Entity> {
-    const out = this.hierarchyDirty;
-    this.hierarchyDirty = new Set();
+    if (this.hierarchyDirty.size === 0) return this.hierarchyDirty;
+    const out = new Set(this.hierarchyDirty);
+    this.hierarchyDirty.clear();
     return out;
   }
 

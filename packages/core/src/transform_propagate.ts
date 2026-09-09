@@ -30,16 +30,17 @@ const tmpTrs: TransformData = {
 };
 
 function trsEqual(a: TransformData, b: TransformData): boolean {
+  const eps = 1e-9;
   return (
-    a.x === b.x &&
-    a.y === b.y &&
-    a.z === b.z &&
-    a.rx === b.rx &&
-    a.ry === b.ry &&
-    a.rz === b.rz &&
-    a.sx === b.sx &&
-    a.sy === b.sy &&
-    a.sz === b.sz
+    Math.abs(a.x - b.x) <= eps &&
+    Math.abs(a.y - b.y) <= eps &&
+    Math.abs(a.z - b.z) <= eps &&
+    Math.abs(a.rx - b.rx) <= eps &&
+    Math.abs(a.ry - b.ry) <= eps &&
+    Math.abs(a.rz - b.rz) <= eps &&
+    Math.abs(a.sx - b.sx) <= eps &&
+    Math.abs(a.sy - b.sy) <= eps &&
+    Math.abs(a.sz - b.sz) <= eps
   );
 }
 
@@ -86,17 +87,18 @@ export const transformPropagation = system({
     write: [GlobalTransform],
   },
   run(world) {
-    let missingGlobal = false;
-    let transformCount = 0;
-    for (const [e] of world.query(Transform)) {
-      transformCount++;
-      if (!world.has(e, GlobalTransform)) missingGlobal = true;
-    }
-
     const storeDirty = world.isStoreDirty(Transform);
     const dirty = world.consumeHierarchyDirty();
+    if (!storeDirty && dirty.size === 0) return;
 
-    if (!missingGlobal && !storeDirty && dirty.size === 0) return;
+    const transformCount = world.componentStoreSize(Transform);
+    let missingGlobal = false;
+    for (const e of dirty) {
+      if (world.has(e, Transform) && !world.has(e, GlobalTransform)) {
+        missingGlobal = true;
+        break;
+      }
+    }
 
     const useFull =
       missingGlobal ||
