@@ -99,6 +99,7 @@ export {
   ParallelExecutor,
   type ParallelExecutorOptions,
   type ParallelTimings,
+  type ParallelDataPath,
 } from "./parallel/executor.js";
 
 export {

@@ -246,14 +246,8 @@ export function columnsFromDescriptor(desc: SharedStoreDescriptor): {
 }
 
 export function sharedArrayBufferAvailable(): boolean {
-  try {
-    return typeof SharedArrayBuffer !== "undefined" &&
-      typeof crossOriginIsolated !== "undefined"
-      ? crossOriginIsolated ||
-          // Node typically allows SAB without COOP/COEP
-          typeof process !== "undefined"
-      : typeof SharedArrayBuffer !== "undefined";
-  } catch {
-    return typeof SharedArrayBuffer !== "undefined";
-  }
+  if (typeof SharedArrayBuffer === "undefined") return false;
+  if (typeof process !== "undefined" && process.versions?.node) return true;
+  if (typeof crossOriginIsolated !== "undefined") return !!crossOriginIsolated;
+  return true;
 }
