@@ -18,7 +18,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/parallel && cp src/parallel/*.mjs dist/parallel/",
     "clean": "rm -rf dist"
   },
   "keywords": [

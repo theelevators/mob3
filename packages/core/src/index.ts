@@ -80,6 +80,43 @@ export { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 export { Transform, type TransformData } from "./transform.js";
 export { PendingDespawn } from "./pending_despawn.js";
 
-export { App, type AppRunner } from "./app.js";
+export { App, type AppRunner, type AppOptions } from "./app.js";
 export type { Plugin, PluginFactory } from "./plugin.js";
 export { normalizePlugin } from "./plugin.js";
+
+export {
+  workerSystem,
+  getWorkerMeta,
+  isWorkerSystem,
+  runWorkerSystemLocal,
+  type WorkerSystemDefinition,
+  type WorkerSystemMeta,
+  type WorkerDeclaredSystem,
+} from "./parallel/worker_system.js";
+
+export {
+  parallelExecutor,
+  ParallelExecutor,
+  type ParallelExecutorOptions,
+  type ParallelTimings,
+} from "./parallel/executor.js";
+
+export {
+  createWorkerPool,
+  workersSupported,
+  type WorkerPool,
+  type WorkerPoolOptions,
+  type PoolMode,
+} from "./parallel/pool.js";
+
+export type {
+  WorkerPayload,
+  WorkerResult,
+  WorkerWriteSlice,
+  NumericSlice,
+} from "./parallel/types.js";
+
+export {
+  isWorkerSafeComponent,
+  getNumericLayout,
+} from "./parallel/transfer.js";

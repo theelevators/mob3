@@ -7,6 +7,7 @@ import {
   type CompiledSchedule,
   type ExecutionPlan,
 } from "./execution_plan.js";
+import type { ParallelExecutor } from "./parallel/executor.js";
 
 /**
  * A system is behavior operating against world state.
@@ -58,12 +59,6 @@ function asArray(v?: SystemFn | SystemFn[]): SystemFn[] {
 export type ScheduleDiagnosticsOptions = {
   /** Record per-system timings. */
   timings?: boolean;
-  /**
-   * Strict compilation:
-   * - missing ordering targets → throw
-   * - unordered declared conflicts → throw
-   * Cycles always throw.
-   */
   strict?: boolean;
 };
 
@@ -78,6 +73,8 @@ export class Schedule {
   private timingsEnabled = false;
   private strict = false;
   readonly timingStore = new TimingStore();
+  /** Optional Phase 5 parallel executor. */
+  parallel: ParallelExecutor | null = null;
 
   enableTimings(enabled = true): void {
     this.timingsEnabled = enabled;
@@ -85,11 +82,14 @@ export class Schedule {
 
   enableStrict(enabled = true): void {
     this.strict = enabled;
-    // Force recompile with new strictness
     for (const label of this.entries.keys()) {
       this.dirty.add(label);
       this.compiled.delete(label);
     }
+  }
+
+  setParallelExecutor(executor: ParallelExecutor | null): void {
+    this.parallel = executor;
   }
 
   addSystem(
@@ -127,6 +127,7 @@ export class Schedule {
     return this.addSystem(label, system, constraints);
   }
 
+  /** Sequential reference executor (Phase 4). */
   run(label: ScheduleLabel, world: World): void {
     const compiled = this.compile(label);
     if (compiled.runOrder.length === 0) return;
@@ -145,14 +146,30 @@ export class Schedule {
     }
   }
 
+  /**
+   * Parallel-aware async run. Uses ParallelExecutor when set; otherwise
+   * behaves like sequential `run`.
+   */
+  async runAsync(label: ScheduleLabel, world: World): Promise<void> {
+    const compiled = this.compile(label);
+    if (compiled.runOrder.length === 0) return;
+    if (this.parallel) {
+      await this.parallel.run(
+        compiled,
+        world,
+        this.timingsEnabled ? this.timingStore : undefined,
+      );
+      return;
+    }
+    this.run(label, world);
+  }
+
   systems(label: ScheduleLabel): readonly SystemFn[] {
     return this.compile(label).runOrder;
   }
 
-  /** Compiled execution plan for a schedule label. */
   plan(label: ScheduleLabel): ExecutionPlan {
     const compiled = this.compile(label);
-    // Refresh timings into plan snapshot
     if (this.timingsEnabled) {
       for (const s of compiled.plan.systems) {
         const t = this.timingStore.get(s.id);
