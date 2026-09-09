@@ -108,6 +108,19 @@ export class App {
     return this;
   }
 
+  /**
+   * Enable schedule diagnostics (timings). Cheap to leave off for production.
+   */
+  enableDiagnostics(options: { timings?: boolean } = {}): this {
+    this.schedule.enableTimings(options.timings ?? true);
+    return this;
+  }
+
+  /** Inspect the compiled execution plan for a schedule label. */
+  inspectSchedule(label: ScheduleLabel) {
+    return this.schedule.plan(label);
+  }
+
   update(deltaSeconds: number): void {
     this.assertNotDisposed();
     this.ensureStartup();

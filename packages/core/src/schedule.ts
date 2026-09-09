@@ -1,5 +1,12 @@
 import type { World } from "./world.js";
 import { Commands } from "./commands.js";
+import { getSystemMeta } from "./system.js";
+import {
+  compileExecutionPlan,
+  TimingStore,
+  type CompiledSchedule,
+  type ExecutionPlan,
+} from "./execution_plan.js";
 
 /**
  * A system is behavior operating against world state.
@@ -40,6 +47,7 @@ type SystemEntry = {
   system: SystemFn;
   before: SystemFn[];
   after: SystemFn[];
+  registrationIndex: number;
 };
 
 function asArray(v?: SystemFn | SystemFn[]): SystemFn[] {
@@ -47,68 +55,25 @@ function asArray(v?: SystemFn | SystemFn[]): SystemFn[] {
   return Array.isArray(v) ? v : [v];
 }
 
-/** Kahn topological sort; registration order breaks ties. */
-function orderSystems(entries: SystemEntry[]): SystemFn[] {
-  const nodes = entries.map((e) => e.system);
-  const index = new Map<SystemFn, number>();
-  nodes.forEach((s, i) => index.set(s, i));
+export type ScheduleDiagnosticsOptions = {
+  /** Record per-system timings. */
+  timings?: boolean;
+};
 
-  const succ = new Map<SystemFn, Set<SystemFn>>();
-  const indeg = new Map<SystemFn, number>();
-  for (const s of nodes) {
-    succ.set(s, new Set());
-    indeg.set(s, 0);
-  }
-
-  const addEdge = (from: SystemFn, to: SystemFn) => {
-    if (!index.has(from) || !index.has(to) || from === to) return;
-    const set = succ.get(from)!;
-    if (set.has(to)) return;
-    set.add(to);
-    indeg.set(to, (indeg.get(to) ?? 0) + 1);
-  };
-
-  for (const e of entries) {
-    for (const b of e.before) addEdge(e.system, b); // system → before target
-    for (const a of e.after) addEdge(a, e.system); // after source → system
-  }
-
-  const ready: SystemFn[] = [];
-  for (const s of nodes) {
-    if ((indeg.get(s) ?? 0) === 0) ready.push(s);
-  }
-  // stable: keep registration order among ready
-  ready.sort((a, b) => index.get(a)! - index.get(b)!);
-
-  const out: SystemFn[] = [];
-  while (ready.length) {
-    const s = ready.shift()!;
-    out.push(s);
-    const nexts = [...(succ.get(s) ?? [])].sort(
-      (a, b) => index.get(a)! - index.get(b)!,
-    );
-    for (const n of nexts) {
-      const d = (indeg.get(n) ?? 1) - 1;
-      indeg.set(n, d);
-      if (d === 0) {
-        ready.push(n);
-        ready.sort((a, b) => index.get(a)! - index.get(b)!);
-      }
-    }
-  }
-
-  if (out.length !== nodes.length) {
-    throw new Error(
-      "Schedule cycle detected in before/after constraints",
-    );
-  }
-  return out;
-}
-
+/**
+ * Schedule of systems for a label, with compiled execution plans.
+ */
 export class Schedule {
   private readonly entries = new Map<ScheduleLabel, SystemEntry[]>();
-  private readonly ordered = new Map<ScheduleLabel, SystemFn[]>();
+  private readonly compiled = new Map<ScheduleLabel, CompiledSchedule>();
   private dirty = new Set<ScheduleLabel>();
+  private nextIndex = 0;
+  private timingsEnabled = false;
+  readonly timingStore = new TimingStore();
+
+  enableTimings(enabled = true): void {
+    this.timingsEnabled = enabled;
+  }
 
   addSystem(
     label: ScheduleLabel,
@@ -129,13 +94,14 @@ export class Schedule {
         system,
         before: asArray(constraints?.before),
         after: asArray(constraints?.after),
+        registrationIndex: this.nextIndex++,
       });
     }
     this.dirty.add(label);
+    this.compiled.delete(label);
     return this;
   }
 
-  /** Add ordering constraints to an already-registered system. */
   order(
     label: ScheduleLabel,
     system: SystemFn,
@@ -145,17 +111,43 @@ export class Schedule {
   }
 
   run(label: ScheduleLabel, world: World): void {
-    const systems = this.resolve(label);
-    if (systems.length === 0) return;
+    const compiled = this.compile(label);
+    if (compiled.runOrder.length === 0) return;
     const commands = new Commands(world);
-    for (const system of systems) {
-      system(world, commands);
-      commands.flush();
+    for (const system of compiled.runOrder) {
+      if (this.timingsEnabled) {
+        const meta = getSystemMeta(system);
+        const t0 = nowMs();
+        system(world, commands);
+        commands.flush();
+        this.timingStore.record(meta.id, nowMs() - t0);
+      } else {
+        system(world, commands);
+        commands.flush();
+      }
     }
   }
 
   systems(label: ScheduleLabel): readonly SystemFn[] {
-    return this.resolve(label);
+    return this.compile(label).runOrder;
+  }
+
+  /** Compiled execution plan for a schedule label. */
+  plan(label: ScheduleLabel): ExecutionPlan {
+    const compiled = this.compile(label);
+    // Refresh timings into plan snapshot
+    if (this.timingsEnabled) {
+      for (const s of compiled.plan.systems) {
+        const t = this.timingStore.get(s.id);
+        if (t) {
+          s.timing = {
+            ...t,
+            minMs: Number.isFinite(t.minMs) ? t.minMs : 0,
+          };
+        }
+      }
+    }
+    return compiled.plan;
   }
 
   inspect(): Record<string, number> {
@@ -163,19 +155,37 @@ export class Schedule {
     for (const [label] of this.entries) {
       const name =
         typeof label === "symbol" ? label.description ?? String(label) : label;
-      out[name] = this.resolve(label).length;
+      out[name] = this.compile(label).runOrder.length;
     }
     return out;
   }
 
-  private resolve(label: ScheduleLabel): SystemFn[] {
-    if (!this.dirty.has(label) && this.ordered.has(label)) {
-      return this.ordered.get(label)!;
+  private compile(label: ScheduleLabel): CompiledSchedule {
+    if (!this.dirty.has(label) && this.compiled.has(label)) {
+      return this.compiled.get(label)!;
     }
     const list = this.entries.get(label) ?? [];
-    const ordered = orderSystems(list);
-    this.ordered.set(label, ordered);
+    const entries = list.map((e) => ({
+      system: e.system,
+      meta: getSystemMeta(e.system),
+      before: e.before,
+      after: e.after,
+      registrationIndex: e.registrationIndex,
+    }));
+    const compiled = compileExecutionPlan(
+      label,
+      entries,
+      this.timingsEnabled ? this.timingStore : undefined,
+    );
+    this.compiled.set(label, compiled);
     this.dirty.delete(label);
-    return ordered;
+    return compiled;
   }
+}
+
+function nowMs(): number {
+  if (typeof performance !== "undefined" && performance.now) {
+    return performance.now();
+  }
+  return Date.now();
 }
