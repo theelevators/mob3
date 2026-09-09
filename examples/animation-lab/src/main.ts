@@ -13,6 +13,7 @@ import {
 } from "mob3";
 import { getAssets } from "@mob3/assets";
 import {
+  ThreeAssetsPlugin,
   ThreePlugin,
   ThreeObject,
   ThreeScene,
@@ -153,6 +154,7 @@ const app = new App()
       createDefaultCamera: true,
     }),
   )
+  .addPlugin(ThreeAssetsPlugin())
   .addPlugin(AnimationPlugin())
   .addSystem(Startup, (world) => {
     const scene = world.resource(ThreeScene);
