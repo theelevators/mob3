@@ -123,15 +123,15 @@ function ensureSword(app: App, slot: Slot): void {
   mesh.name = `Sword-${slot.label}`;
   app.world.resource(ThreeScene).add(mesh);
   slot.sword = app.world.spawn(
-    Name({ value: mesh.name }) as never,
-    Transform() as never,
-    GlobalTransform() as never,
-    ThreeObject(mesh) as never,
+    Name({ value: mesh.name }),
+    Transform(),
+    GlobalTransform(),
+    ThreeObject(mesh),
     BoneAttachment({
       source: slot.entity,
       bone: "RightHand",
       oz: 0.25,
-    }) as never,
+    }),
   );
 }
 

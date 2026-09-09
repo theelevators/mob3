@@ -127,7 +127,7 @@ function spawnNode(
 
   const name = nameOverride ?? (template.name || "Node");
   const entity = world.spawn(
-    Name({ value: name }) as never,
+    Name({ value: name }),
     Transform({
       x: template.position.x,
       y: template.position.y,
@@ -138,15 +138,15 @@ function spawnNode(
       sx: template.scale.x,
       sy: template.scale.y,
       sz: template.scale.z,
-    }) as never,
-    GlobalTransform() as never,
-    ThreeObject(obj) as never,
+    }),
+    GlobalTransform(),
+    ThreeObject(obj),
     AssetInstanceRef({
       typeName: handle.typeName,
       key: handle.key,
       index: handle.index,
       generation: handle.generation,
-    }) as never,
+    }),
   );
 
   if (parent !== null) world.setParent(entity, parent);

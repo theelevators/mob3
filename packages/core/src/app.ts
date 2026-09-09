@@ -16,16 +16,23 @@ import {
 import { normalizePlugin, type Plugin, type PluginFactory } from "./plugin.js";
 import { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 import type { ResourceKey } from "./resource.js";
-import {
-  parallelExecutor,
-  type ParallelExecutor,
-  type ParallelExecutorOptions,
+import type {
+  ParallelExecutor,
+  ParallelExecutorOptions,
 } from "./parallel/executor.js";
 import {
   WasmMemoryArena,
   type WasmMemoryArenaOptions,
 } from "./storage/wasm_memory.js";
 import { transformPropagation } from "./transform_propagate.js";
+
+type ParallelFactory = (options?: ParallelExecutorOptions) => ParallelExecutor;
+let parallelFactory: ParallelFactory | null = null;
+
+/** Called by `mob3/parallel` / `mob3/node` to enable App({ parallel: true }). */
+export function registerParallelFactory(factory: ParallelFactory): void {
+  parallelFactory = factory;
+}
 
 export type AppRunner = (app: App) => void | Promise<void>;
 
@@ -97,9 +104,16 @@ export class App {
       this.world.setWasmArena(new WasmMemoryArena(opts));
     }
     if (options.parallel) {
+      if (!parallelFactory) {
+        throw new Error(
+          "App({ parallel: true }) requires the Node/parallel entry. " +
+            "Import \"mob3/parallel\" (or \"mob3/node\") before constructing App, " +
+            "or call installParallel(app, options) after.",
+        );
+      }
       const opts =
         options.parallel === true ? {} : (options.parallel as ParallelExecutorOptions);
-      this.setParallelExecutor(parallelExecutor(opts));
+      this.setParallelExecutor(parallelFactory(opts));
     }
   }
 

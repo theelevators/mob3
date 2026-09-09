@@ -16,6 +16,7 @@ import {
   ThreeRenderer,
   ThreeScene,
   type ThreePluginOptions,
+  ThreeSyncModeResource,
 } from "./components.js";
 
 type Owned = {
@@ -35,6 +36,17 @@ export const syncTransforms = system({
     write: [ThreeObject],
   },
   run(world) {
+    const mode = world.tryResource(ThreeSyncModeResource) ?? "changed";
+    if (mode === "always") {
+      for (const [, global, three] of world.query(GlobalTransform, ThreeObject)) {
+        applyTrs(three.object, global);
+      }
+      for (const [e, transform, three] of world.query(Transform, ThreeObject)) {
+        if (world.has(e, GlobalTransform)) continue;
+        applyTrs(three.object, transform);
+      }
+      return;
+    }
     // Prefer changed globals; also sync newly added ThreeObject
     for (const [, global, three] of world
       .query(GlobalTransform, ThreeObject)
@@ -174,6 +186,7 @@ export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
       app.insertResource(ThreeRenderer, renderer);
       app.insertResource(ThreeScene, scene);
       app.insertResource(ThreeCamera, camera);
+      app.insertResource(ThreeSyncModeResource, options.syncMode ?? "changed");
 
       app.addSystem(FixedUpdate, detachPendingThreeObjects);
       app.addSystem(Update, detachPendingThreeObjects);
