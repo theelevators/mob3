@@ -554,6 +554,7 @@ export function planToJson(plan: ExecutionPlan): Record<string, unknown> {
       id: idStr(s.id),
       name: s.name,
       declared: s.declared,
+      affinity: s.affinity,
       reads: accessLabels(s, "read"),
       writes: accessLabels(s, "write"),
       commands: s.access.commands,
