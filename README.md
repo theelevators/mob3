@@ -101,4 +101,15 @@ npm run bench
 
 ## Status
 
-v0.1 — MVP vertical slice: App + ECS core + `@mob3/three` + 1,000-cube demo.
+v0.1 vertical slice (cubes) + **Phase 2** architectural proof:
+
+- `examples/mob-arena` — playable browser arena + headless twin
+- Deferred `Commands` (flush after each system)
+- Generational entity IDs
+- Mixed 100k-entity benchmarks (`npm run bench:mixed`)
+- Findings: [`docs/phase-2-findings.md`](./docs/phase-2-findings.md)
+
+```bash
+npm run example:arena           # browser
+npm run example:arena:headless  # no Three
+```

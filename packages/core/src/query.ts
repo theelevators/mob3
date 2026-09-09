@@ -47,12 +47,34 @@ export class Query<Cs extends readonly ComponentType[] = ComponentType[]>
     return [...this];
   }
 
-  *[Symbol.iterator](): Iterator<QueryRow<Cs>> {
-    if (this.required.length === 0) {
-      return;
+  /**
+   * Callback iteration — avoids per-row tuple allocation from `for...of`.
+   * Prefer this in hot systems when profiling shows iterator GC pressure.
+   */
+  forEach(
+    fn: (entity: Entity, ...components: QueryTuple<Cs>) => void,
+  ): void {
+    for (const entity of this.matchingEntities()) {
+      const comps = this.required.map((type) =>
+        this.world.get(entity, type),
+      ) as QueryTuple<Cs>;
+      fn(entity, ...comps);
     }
+  }
 
-    // Iterate the smallest required store for fewer candidates.
+  *[Symbol.iterator](): Iterator<QueryRow<Cs>> {
+    for (const entity of this.matchingEntities()) {
+      const row = [entity] as unknown as QueryRow<Cs>;
+      for (let i = 0; i < this.required.length; i++) {
+        row.push(this.world.get(entity, this.required[i]!) as never);
+      }
+      yield row;
+    }
+  }
+
+  private *matchingEntities(): IterableIterator<Entity> {
+    if (this.required.length === 0) return;
+
     let drive = this.required[0]!;
     let driveSize = this.world.componentStoreSize(drive);
     for (let i = 1; i < this.required.length; i++) {
@@ -70,8 +92,6 @@ export class Query<Cs extends readonly ComponentType[] = ComponentType[]>
     ];
 
     for (const entity of this.world.entitiesWith(drive)) {
-      if (!this.world.isAlive(entity)) continue;
-
       let ok = true;
       for (const type of filterTypes) {
         if (!this.world.has(entity, type)) {
@@ -89,11 +109,7 @@ export class Query<Cs extends readonly ComponentType[] = ComponentType[]>
       }
       if (!ok) continue;
 
-      const row = [entity] as unknown as QueryRow<Cs>;
-      for (let i = 0; i < this.required.length; i++) {
-        row.push(this.world.get(entity, this.required[i]!) as never);
-      }
-      yield row;
+      yield entity;
     }
   }
 }

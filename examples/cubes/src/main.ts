@@ -1,15 +1,15 @@
 import {
   App,
-  Startup,
   Update,
+  Startup,
   Time,
+  Transform,
   component,
   type World,
 } from "mob3";
 import {
   ThreePlugin,
   ThreeScene,
-  Transform,
   ThreeObject,
 } from "@mob3/three";
 import * as THREE from "three";

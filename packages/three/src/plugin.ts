@@ -1,5 +1,5 @@
 import type { World } from "mob3";
-import { PreRender, Render } from "mob3";
+import { PreRender, Render, Transform } from "mob3";
 import type { App, Plugin } from "mob3";
 import * as THREE from "three";
 import {
@@ -7,7 +7,6 @@ import {
   ThreeObject,
   ThreeRenderer,
   ThreeScene,
-  Transform,
   type ThreePluginOptions,
 } from "./components.js";
 
@@ -30,8 +29,6 @@ function renderFrame(world: World): void {
 /**
  * Thin Three.js integration. Creates renderer/scene/camera resources
  * and registers transform sync + render systems.
- *
- * Does not hide THREE APIs — developers keep using Mesh, Material, etc.
  */
 export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
   return {
@@ -64,7 +61,7 @@ export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
             ? canvas.clientWidth / Math.max(canvas.clientHeight, 1)
             : 16 / 9;
         camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
-        camera.position.set(0, 12, 28);
+        camera.position.set(0, 18, 22);
         camera.lookAt(0, 0, 0);
       }
       if (!camera) {
