@@ -25,7 +25,7 @@ function columnsFromDesc(desc) {
     }
   };
   const columns = {};
-  let offset = desc.headerBytes;
+  let offset = desc.headerBytes + 16;
   for (let f = 0; f < desc.fields.length; f++) {
     const kind = desc.kinds[f];
     const bpe = bytesPerField(kind);
@@ -33,7 +33,7 @@ function columnsFromDesc(desc) {
     columns[desc.fields[f]] = make(kind, desc.sab, offset, desc.capacity);
     offset += bpe * desc.capacity;
   }
-  const header = new Int32Array(desc.sab, 0, 4);
+  const header = new Int32Array(desc.sab, desc.headerBytes, 4);
   return { columns, count: header[0], entities: desc.entities };
 }
 

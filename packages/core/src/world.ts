@@ -23,6 +23,7 @@ import {
   type ComponentStorage,
   getPackedMeta,
   type SharedPackedStorage,
+  type WasmMemoryArena,
 } from "./storage/index.js";
 
 /**
@@ -39,6 +40,7 @@ export class World {
   private readonly entityComponents = new Map<Entity, Set<ComponentType>>();
   private readonly resources = new Map<symbol | ResourceKey, unknown>();
   private readonly eventStore = new EventStore();
+  private wasmArena: WasmMemoryArena | null = null;
 
   spawn(...bundle: ComponentBundleItem[]): Entity {
     const entity = this.allocateEntity();
@@ -241,6 +243,16 @@ export class World {
     }
   }
 
+  /** Opt-in WASM-compatible shared memory arena for `backing: "wasm"` stores. */
+  setWasmArena(arena: WasmMemoryArena | null): this {
+    this.wasmArena = arena;
+    return this;
+  }
+
+  getWasmArena(): WasmMemoryArena | null {
+    return this.wasmArena;
+  }
+
   /** @internal — storage handle for packed/shared worker paths */
   componentStorage(type: ComponentType): ComponentStorage | undefined {
     return this.stores.get(type);
@@ -250,7 +262,7 @@ export class World {
   ensureStorage(type: ComponentType): ComponentStorage {
     let store = this.stores.get(type);
     if (!store) {
-      store = createStorageFor(type);
+      store = createStorageFor(type, { wasmArena: this.wasmArena });
       this.stores.set(type, store);
     }
     return store;
@@ -291,7 +303,7 @@ export class World {
   ): void {
     let store = this.stores.get(type);
     if (!store) {
-      store = createStorageFor(type);
+      store = createStorageFor(type, { wasmArena: this.wasmArena });
       this.stores.set(type, store);
     }
     store.set(entity, value);

@@ -25,6 +25,11 @@ import {
   type SharedWorkerPayload,
 } from "./shared_path.js";
 import { getAbiMeta, type AbiSystemMeta } from "../abi/abi_system.js";
+import {
+  ensureWasmExecutor,
+  getWasmMeta,
+  type WasmSystemMeta,
+} from "../abi/wasm_system.js";
 import { AbiIdRegistry } from "../abi/ids.js";
 import {
   buildSystemInvocation,
@@ -42,7 +47,13 @@ export type ParallelTimings = {
   transferMs: number;
   commitMs: number;
   barrierMs: number;
-  path?: "copy" | "shared" | "main" | "abi-shared" | "abi-copy";
+  path?:
+    | "copy"
+    | "shared"
+    | "main"
+    | "abi-shared"
+    | "abi-copy"
+    | "wasm-shared";
 };
 
 export type ParallelDataPath = "copy" | "shared" | "auto";
@@ -156,19 +167,32 @@ export class ParallelExecutor {
           fn: SystemFn;
           workerMeta: WorkerSystemMeta | null;
           abiMeta: AbiSystemMeta | null;
-          kind: "abi" | "worker" | "main";
+          wasmMeta: WasmSystemMeta | null;
+          kind: "abi" | "worker" | "main" | "wasm";
         };
         const jobs: Job[] = batch.map((id) => {
           const fn = fnById.get(id)!;
+          const wasmMeta = getWasmMeta(fn);
+          if (wasmMeta) {
+            wasmMeta.ids = this.ids;
+            return {
+              id,
+              fn,
+              workerMeta: null,
+              abiMeta: null,
+              wasmMeta,
+              kind: "wasm" as const,
+            };
+          }
           const ameta = getAbiMeta(fn);
           if (ameta) {
-            // Share executor-level ID registry for stable IDs across ticks
             ameta.ids = this.ids;
             return {
               id,
               fn,
               workerMeta: null,
               abiMeta: ameta,
+              wasmMeta: null,
               kind: "abi" as const,
             };
           }
@@ -178,6 +202,7 @@ export class ParallelExecutor {
             fn,
             workerMeta: wmeta ?? null,
             abiMeta: null,
+            wasmMeta: null,
             kind: wmeta ? ("worker" as const) : ("main" as const),
           };
         });
@@ -199,6 +224,27 @@ export class ParallelExecutor {
             return { job, path: "main", dispatchMs: 0, transferMs: 0 };
           }
           const t0 = nowMs();
+
+          if (job.kind === "wasm" && job.wasmMeta) {
+            const abiInvocation = buildSystemInvocation({
+              world,
+              systemName: job.wasmMeta.name,
+              access: job.wasmMeta.access,
+              resourceKeys: job.wasmMeta.resourceKeys,
+              tick,
+              delta,
+              scheduleName: plan.scheduleName ?? "schedule",
+              preferShared: true,
+              ids: this.ids,
+            });
+            return {
+              job,
+              path: "wasm-shared",
+              abiInvocation,
+              dispatchMs: 0,
+              transferMs: nowMs() - t0,
+            };
+          }
 
           if (job.kind === "abi" && job.abiMeta) {
             const wantShared =
@@ -275,7 +321,17 @@ export class ParallelExecutor {
           prepared.map(async (p) => {
             const tDispatch = nowMs();
             try {
-              if (p.job.kind === "abi" && p.job.abiMeta && p.abiInvocation) {
+              if (p.job.kind === "wasm" && p.job.wasmMeta && p.abiInvocation) {
+                const ex = ensureWasmExecutor(p.job.wasmMeta, world);
+                await ex.ensureReady();
+                p.result = ex.executeSync(p.abiInvocation);
+                const er = p.result as ExecutionResult;
+                if (er.status === "error") {
+                  throw new Error(
+                    er.error ?? `WASM system '${p.job.wasmMeta.name}' failed`,
+                  );
+                }
+              } else if (p.job.kind === "abi" && p.job.abiMeta && p.abiInvocation) {
                 if (this.pool.available) {
                   const transfer = collectTransferables(p.abiInvocation);
                   p.result = (await this.pool.runJob(
@@ -371,6 +427,17 @@ export class ParallelExecutor {
 
         const tCommit = nowMs();
         for (const p of prepared) {
+          if (p.job.kind === "wasm" && p.result && p.job.wasmMeta) {
+            const er = p.result as ExecutionResult;
+            if (timings) {
+              timings.record(
+                p.job.wasmMeta.id,
+                (er.execMs ?? 0) + p.transferMs,
+              );
+            }
+            continue;
+          }
+
           if (p.job.kind === "abi" && p.result && p.job.abiMeta && p.abiInvocation) {
             const er = p.result as ExecutionResult;
             if (p.path === "abi-copy" && er.localWrites?.length) {
@@ -438,15 +505,17 @@ export class ParallelExecutor {
         const commitMs = nowMs() - tCommit;
         const barrierMs = nowMs() - barrierStart;
 
-        const pathHint = prepared.some((x) => x.path === "abi-shared")
-          ? "abi-shared"
-          : prepared.some((x) => x.path === "abi-copy")
-            ? "abi-copy"
-            : prepared.some((x) => x.path === "shared")
-              ? "shared"
-              : prepared.some((x) => x.path === "copy")
-                ? "copy"
-                : "main";
+        const pathHint = prepared.some((x) => x.path === "wasm-shared")
+          ? "wasm-shared"
+          : prepared.some((x) => x.path === "abi-shared")
+            ? "abi-shared"
+            : prepared.some((x) => x.path === "abi-copy")
+              ? "abi-copy"
+              : prepared.some((x) => x.path === "shared")
+                ? "shared"
+                : prepared.some((x) => x.path === "copy")
+                  ? "copy"
+                  : "main";
 
         this.batchTimings.push({
           dispatchMs: Math.max(...prepared.map((x) => x.dispatchMs), 0),

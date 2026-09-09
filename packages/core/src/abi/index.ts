@@ -56,3 +56,26 @@ export {
   type AbiSystemMeta,
   type AbiDeclaredSystem,
 } from "./abi_system.js";
+export {
+  WasmAbiExecutor,
+  webAssemblyAvailable,
+  sharedWasmMemoryAvailable,
+  type WasmAbiExecutorOptions,
+  type WasmModuleSource,
+  type WasmStoreExpect,
+  type WasmFieldExpect,
+} from "./wasm_executor.js";
+export {
+  wasmSystem,
+  getWasmMeta,
+  isWasmSystem,
+  warmWasmSystem,
+  runWasmSystem,
+  runWasmSystemSync,
+  ensureWasmExecutor,
+  WASM_META,
+  type WasmSystemDefinition,
+  type WasmSystemMeta,
+  type WasmDeclaredSystem,
+  type WasmMode,
+} from "./wasm_system.js";

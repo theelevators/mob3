@@ -21,6 +21,11 @@ export type PackedComponentOptions = {
   shared?: boolean;
   /** Required when shared; used as initial capacity for local packed too. */
   capacity?: number;
+  /**
+   * When shared: "sab" (default) or "wasm" (World WasmMemoryArena slice).
+   * WASM-backed storage is opt-in — not all shared components become WASM memory.
+   */
+  backing?: "sab" | "wasm";
 };
 
 export type PackedComponentType<S extends FieldSchema> = ComponentType<
@@ -67,6 +72,10 @@ export function packedComponent<S extends FieldSchema>(
     // still ok with default 10k — document
   }
   const name = options.name ?? "PackedComponent";
+  const backing = options.backing ?? "sab";
+  if (backing === "wasm" && !shared) {
+    throw new Error(`packedComponent '${name}': backing "wasm" requires shared: true`);
+  }
   const defaults = defaultsFromSchema(schema);
   const id = Symbol(`mob3.packed.${name}`);
 
@@ -77,6 +86,7 @@ export function packedComponent<S extends FieldSchema>(
     shared,
     capacity,
     name,
+    backing: shared ? backing : undefined,
   };
 
   const factory = ((partial?: Partial<InferSchema<S>>) => {
