@@ -4,16 +4,23 @@ import { ObjectStorage } from "./object_storage.js";
 import { createPackedStorage } from "./packed_storage.js";
 import { createSharedPackedStorage } from "./shared_packed.js";
 import { getPackedMeta } from "./packed_component.js";
+import type { WasmMemoryArena } from "./wasm_memory.js";
 
-export function createStorageFor(type: ComponentType): ComponentStorage {
+export type StorageFactoryContext = {
+  wasmArena?: WasmMemoryArena | null;
+};
+
+export function createStorageFor(
+  type: ComponentType,
+  ctx: StorageFactoryContext = {},
+): ComponentStorage {
   if (type.isTag) {
-    // Tags still use ObjectStorage with sentinel true — same as today
     return new ObjectStorage();
   }
   const meta = getPackedMeta(type);
   if (!meta) return new ObjectStorage();
   if (meta.shared) {
-    return createSharedPackedStorage(meta);
+    return createSharedPackedStorage(meta, ctx.wasmArena ?? null);
   }
   return createPackedStorage(meta, meta.capacity > 16 ? meta.capacity : 16);
 }
@@ -28,6 +35,15 @@ export {
   columnsFromDescriptor,
   type SharedStoreDescriptor,
 } from "./shared_packed.js";
+export {
+  WasmMemoryArena,
+  sharedWasmMemoryAvailable,
+  webAssemblyAvailable,
+  packedStoreByteLength,
+  pagesForBytes,
+  type WasmMemoryArenaOptions,
+  type SharedMemoryRegion,
+} from "./wasm_memory.js";
 export {
   packedComponent,
   getPackedMeta,

@@ -8,13 +8,22 @@ import {
   makeTypedArray,
 } from "./types.js";
 import type { PackedView } from "./packed_storage.js";
+import type { WasmMemoryArena } from "./wasm_memory.js";
 
 type Column = Float32Array | Float64Array | Int32Array | Uint32Array;
 
+export type SharedPackedBacking = {
+  /** Full shared buffer (SAB or WASM memory.buffer). */
+  buffer: SharedArrayBuffer;
+  /** Byte offset of this store's 16-byte header within buffer. */
+  byteOffset: number;
+  /** Optional owning WASM memory (same buffer). */
+  wasmMemory?: WebAssembly.Memory;
+};
+
 /**
- * Fixed-capacity SoA over SharedArrayBuffer.
- * Structural mutation is main-thread only. Workers may mutate field columns
- * for declared write access after receiving descriptors.
+ * Fixed-capacity SoA over SharedArrayBuffer (standalone or arena slice).
+ * Structural mutation is main-thread only.
  */
 export class SharedPackedStorage implements ComponentStorage {
   readonly kind: StorageKind = "shared";
@@ -22,10 +31,12 @@ export class SharedPackedStorage implements ComponentStorage {
   readonly kinds: FieldKind[];
   readonly name: string;
   readonly capacity: number;
+  /** Absolute byte offset of store header in sab. */
+  readonly storeByteOffset: number;
+  readonly wasmMemory: WebAssembly.Memory | null;
 
   private count = 0;
   private readonly sab: SharedArrayBuffer;
-  /** Header: [count:i32, capacity:i32, structGen:i32, pad] then columns */
   private readonly header: Int32Array;
   private columns: Column[] = [];
   private readonly entityToSlot = new Map<Entity, number>();
@@ -34,7 +45,7 @@ export class SharedPackedStorage implements ComponentStorage {
   private readonly viewPool: PackedView[] = [];
   private structGen = 0;
 
-  constructor(meta: PackedComponentMeta) {
+  constructor(meta: PackedComponentMeta, backing?: SharedPackedBacking) {
     this.fields = meta.fields;
     this.kinds = meta.kinds;
     this.name = meta.name;
@@ -49,11 +60,27 @@ export class SharedPackedStorage implements ComponentStorage {
     }
     colBytes = Math.ceil(colBytes / 8) * 8;
     const headerBytes = 16;
-    this.sab = new SharedArrayBuffer(headerBytes + colBytes);
-    this.header = new Int32Array(this.sab, 0, 4);
-    this.header[0] = 0; // count
+    const need = headerBytes + colBytes;
+
+    if (backing) {
+      if (backing.byteOffset + need > backing.buffer.byteLength) {
+        throw new Error(
+          `Shared packed region too small for '${meta.name}': need ${need} at ${backing.byteOffset}`,
+        );
+      }
+      this.sab = backing.buffer;
+      this.storeByteOffset = backing.byteOffset;
+      this.wasmMemory = backing.wasmMemory ?? null;
+    } else {
+      this.sab = new SharedArrayBuffer(need);
+      this.storeByteOffset = 0;
+      this.wasmMemory = null;
+    }
+
+    this.header = new Int32Array(this.sab, this.storeByteOffset, 4);
+    this.header[0] = 0;
     this.header[1] = this.capacity;
-    this.header[2] = 0; // structGen
+    this.header[2] = 0;
     this.rebuildColumns(headerBytes);
     this.viewProto = this.buildViewProto();
   }
@@ -66,7 +93,6 @@ export class SharedPackedStorage implements ComponentStorage {
     return this.structGen;
   }
 
-  /** Dense entity ids for live slots `[0, count)`. */
   entityIds(): Uint32Array {
     const out = new Uint32Array(this.count);
     for (let i = 0; i < this.count; i++) out[i] = this.slotToEntity[i]! >>> 0;
@@ -77,7 +103,11 @@ export class SharedPackedStorage implements ComponentStorage {
     return this.sab;
   }
 
-  /** Descriptor for workers (structured-clone of SAB + meta). */
+  /** True when columns live in a WebAssembly.Memory buffer. */
+  get isWasmBacked(): boolean {
+    return this.wasmMemory !== null;
+  }
+
   workerDescriptor(): SharedStoreDescriptor {
     return {
       name: this.name,
@@ -86,8 +116,8 @@ export class SharedPackedStorage implements ComponentStorage {
       capacity: this.capacity,
       count: this.count,
       sab: this.sab,
-      headerBytes: 16,
-      /** Packed entity ids for live slots (copied — small metadata). */
+      /** Absolute offset of this store's header (0 for standalone SAB). */
+      headerBytes: this.storeByteOffset,
       entities: Uint32Array.from(
         this.slotToEntity.slice(0, this.count).map((e) => e >>> 0),
       ),
@@ -98,6 +128,12 @@ export class SharedPackedStorage implements ComponentStorage {
     const i = this.fields.indexOf(field);
     if (i < 0) throw new Error(`Unknown field '${field}'`);
     return this.columns[i]!;
+  }
+
+  /** Absolute byte offset of a field column base. */
+  fieldByteOffset(field: string): number {
+    const col = this.column(field);
+    return col.byteOffset;
   }
 
   has(entity: Entity): boolean {
@@ -179,7 +215,7 @@ export class SharedPackedStorage implements ComponentStorage {
 
   private rebuildColumns(headerBytes: number): void {
     this.columns = [];
-    let offset = headerBytes;
+    let offset = this.storeByteOffset + headerBytes;
     for (let f = 0; f < this.fields.length; f++) {
       const kind = this.kinds[f]!;
       const bpe = bytesPerField(kind);
@@ -223,17 +259,37 @@ export type SharedStoreDescriptor = {
   capacity: number;
   count: number;
   sab: SharedArrayBuffer;
+  /** Absolute byte offset of the 16-byte header within sab. */
   headerBytes: number;
   entities: Uint32Array;
 };
 
 export function createSharedPackedStorage(
   meta: PackedComponentMeta,
+  arena?: WasmMemoryArena | null,
 ): SharedPackedStorage {
   if (typeof SharedArrayBuffer === "undefined") {
     throw new Error(
       `SharedArrayBuffer unavailable — cannot create shared storage for '${meta.name}'`,
     );
+  }
+  if (meta.backing === "wasm") {
+    if (!arena) {
+      throw new Error(
+        `Component '${meta.name}' requires WasmMemoryArena (world.setWasmArena / App wasmArena option)`,
+      );
+    }
+    const alloc = arena.allocPackedStore(meta);
+    if (!(arena.buffer instanceof SharedArrayBuffer)) {
+      throw new Error(
+        `WasmMemoryArena buffer is not SharedArrayBuffer — shared WASM memory required for '${meta.name}'`,
+      );
+    }
+    return new SharedPackedStorage(meta, {
+      buffer: arena.buffer,
+      byteOffset: alloc.byteOffset,
+      wasmMemory: arena.memory,
+    });
   }
   return new SharedPackedStorage(meta);
 }
@@ -244,7 +300,7 @@ export function columnsFromDescriptor(desc: SharedStoreDescriptor): {
   count: number;
 } {
   const columns: Column[] = [];
-  let offset = desc.headerBytes;
+  let offset = desc.headerBytes + 16;
   for (let f = 0; f < desc.fields.length; f++) {
     const kind = desc.kinds[f]!;
     const bpe = bytesPerField(kind);
@@ -252,7 +308,7 @@ export function columnsFromDescriptor(desc: SharedStoreDescriptor): {
     columns.push(makeTypedArray(kind, desc.sab, offset, desc.capacity));
     offset += bpe * desc.capacity;
   }
-  const header = new Int32Array(desc.sab, 0, 4);
+  const header = new Int32Array(desc.sab, desc.headerBytes, 4);
   return { columns, count: header[0]! };
 }
 

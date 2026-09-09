@@ -39,6 +39,12 @@ export type PackedComponentMeta = {
   shared: boolean;
   capacity: number;
   name: string;
+  /**
+   * shared storage backing:
+   * - sab (default): standalone SharedArrayBuffer
+   * - wasm: slice of World WasmMemoryArena (WebAssembly.Memory)
+   */
+  backing?: "sab" | "wasm";
 };
 
 export function bytesPerField(kind: FieldKind): number {

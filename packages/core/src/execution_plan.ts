@@ -41,6 +41,8 @@ export type PlanSystem = {
   access: SystemMeta["access"];
   /** Phase 5: main vs worker-eligible. */
   affinity: "main" | "worker";
+  /** Phase 8: backend label for diagnostics (does not affect planning). */
+  backend?: "main" | "js-worker" | "abi-js" | "wasm";
   timing?: SystemTiming;
 };
 
@@ -278,12 +280,21 @@ export function compileExecutionPlan(
   const systems: PlanSystem[] = order.map((id) => {
     const e = entries.find((x) => x.meta.id === id)!;
     const timing = timings?.get(id);
+    const m = e.meta as SystemMeta & {
+      wasm?: boolean;
+      abi?: boolean;
+      backend?: PlanSystem["backend"];
+    };
+    const backend: PlanSystem["backend"] =
+      m.backend ??
+      (m.wasm ? "wasm" : m.abi ? "abi-js" : m.affinity === "worker" ? "js-worker" : "main");
     return {
       id,
       name: e.meta.name,
       declared: e.meta.declared,
       access: e.meta.access,
       affinity: e.meta.affinity ?? "main",
+      backend,
       ...(timing
         ? {
             timing: {
@@ -467,7 +478,7 @@ export function formatExecutionPlan(plan: ExecutionPlan): string {
   for (const s of plan.systems) {
     const bi = batchOf.get(s.id) ?? 0;
     lines.push(
-      `[${bi}] ${s.name}${s.declared ? "" : " (opaque)"}  executor: ${s.affinity}`,
+      `[${bi}] ${s.name}${s.declared ? "" : " (opaque)"}  backend: ${s.backend ?? s.affinity}`,
     );
     const readLabels = accessLabels(s, "read");
     const writeLabels = accessLabels(s, "write");

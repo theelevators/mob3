@@ -107,6 +107,13 @@ export {
   getAbiMeta,
   isAbiSystem,
   runAbiSystemLocalSync,
+  WasmAbiExecutor,
+  wasmSystem,
+  getWasmMeta,
+  isWasmSystem,
+  warmWasmSystem,
+  runWasmSystem,
+  ensureWasmExecutor,
   type SystemInvocation,
   type ExecutionResult,
   type AbiExecutor,
@@ -115,6 +122,8 @@ export {
   type AbiSystemMeta,
   type StoreInvocation,
   type AccessDescriptor,
+  type WasmSystemDefinition,
+  type WasmSystemMeta,
 } from "./abi/index.js";
 
 export {
@@ -166,5 +175,9 @@ export {
   type StorageKind,
   type ComponentStorage,
   type SharedStoreDescriptor,
+  WasmMemoryArena,
+  sharedWasmMemoryAvailable,
+  webAssemblyAvailable,
+  type WasmMemoryArenaOptions,
 } from "./storage/index.js";
 

@@ -21,6 +21,10 @@ import {
   type ParallelExecutor,
   type ParallelExecutorOptions,
 } from "./parallel/executor.js";
+import {
+  WasmMemoryArena,
+  type WasmMemoryArenaOptions,
+} from "./storage/wasm_memory.js";
 
 export type AppRunner = (app: App) => void | Promise<void>;
 
@@ -30,6 +34,10 @@ export type AppOptions = {
    * Use `updateAsync` / async runner when set.
    */
   parallel?: boolean | ParallelExecutorOptions;
+  /**
+   * Opt-in WasmMemoryArena for `backing: "wasm"` packed stores (Phase 8).
+   */
+  wasmArena?: boolean | WasmMemoryArenaOptions;
 };
 
 function browserRunner(app: App): void {
@@ -79,6 +87,13 @@ export class App {
 
   constructor(options: AppOptions = {}) {
     this.world.insertResource(Time, createTime());
+    if (options.wasmArena) {
+      const opts =
+        options.wasmArena === true
+          ? ({ initialPages: 64, maxPages: 1024, shared: true } satisfies WasmMemoryArenaOptions)
+          : options.wasmArena;
+      this.world.setWasmArena(new WasmMemoryArena(opts));
+    }
     if (options.parallel) {
       const opts =
         options.parallel === true ? {} : (options.parallel as ParallelExecutorOptions);
