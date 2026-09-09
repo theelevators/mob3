@@ -1,0 +1,15 @@
+import { defineConfig } from "vite";
+import path from "node:path";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      mob3: path.resolve(__dirname, "../../packages/core/src/index.ts"),
+      "@mob3/three": path.resolve(__dirname, "../../packages/three/src/index.ts"),
+    },
+  },
+  server: {
+    port: 5179,
+    host: true,
+  },
+});

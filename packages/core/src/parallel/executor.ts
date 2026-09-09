@@ -502,6 +502,26 @@ export class ParallelExecutor {
             );
           }
         }
+
+        // Off-main shared/WASM writes bypass per-row change ticks — mark stores coarsely.
+        for (const p of prepared) {
+          if (
+            p.path !== "shared" &&
+            p.path !== "abi-shared" &&
+            p.path !== "wasm-shared"
+          ) {
+            continue;
+          }
+          const writes =
+            p.job.wasmMeta?.access.componentWrite ??
+            p.job.abiMeta?.access.componentWrite ??
+            p.job.workerMeta?.access.componentWrite;
+          if (!writes) continue;
+          for (const type of writes) {
+            world.markStoreChanged(type);
+          }
+        }
+
         const commitMs = nowMs() - tCommit;
         const barrierMs = nowMs() - barrierStart;
 

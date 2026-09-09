@@ -78,6 +78,30 @@ export {
 export { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 
 export { Transform, type TransformData } from "./transform.js";
+export {
+  GlobalTransform,
+  type GlobalTransformData,
+} from "./global_transform.js";
+export {
+  Parent,
+  Children,
+  type ParentData,
+  type ChildrenData,
+  type SetParentOptions,
+  type DespawnOptions,
+  type HierarchyPreserve,
+  type HierarchyDespawn,
+} from "./hierarchy.js";
+export { Name, type NameData } from "./name.js";
+export {
+  transformPropagation,
+  recomputeLocalPreservingGlobal,
+} from "./transform_propagate.js";
+export {
+  formatHierarchyTree,
+  type EntityInspect,
+} from "./math_trs.js";
+export { ChangeTracker } from "./change_detection.js";
 export { PendingDespawn } from "./pending_despawn.js";
 
 export { App, type AppRunner, type AppOptions } from "./app.js";

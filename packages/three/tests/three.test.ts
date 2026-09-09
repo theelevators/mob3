@@ -75,4 +75,32 @@ describe("@mob3/three", () => {
     app.update(1 / 60);
     expect(mesh.position.x).toBeCloseTo(4);
   });
+
+  it("syncs GlobalTransform and skips unchanged frames", () => {
+    const mesh = new THREE.Mesh();
+    const app = new App()
+      .addPlugin({
+        build(a) {
+          a.addSystem(PreRender, syncTransforms);
+        },
+      })
+      .addSystem(Startup, (world) => {
+        world.spawn(Transform({ x: 1, y: 2, z: 3 }), ThreeObject(mesh));
+      });
+
+    app.update(1 / 60);
+    expect(mesh.position.x).toBeCloseTo(1);
+
+    mesh.position.set(50, 50, 50);
+    app.update(1 / 60);
+    // No Transform mutation → sync should skip; position stays poked
+    expect(mesh.position.x).toBe(50);
+
+    app.world.getMut(
+      [...app.world.query(Transform)][0]![0],
+      Transform,
+    )!.x = 7;
+    app.update(1 / 60);
+    expect(mesh.position.x).toBeCloseTo(7);
+  });
 });

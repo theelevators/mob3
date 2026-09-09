@@ -5,6 +5,7 @@ import {
   FixedUpdate,
   Update,
   Transform,
+  GlobalTransform,
   PendingDespawn,
   system,
 } from "mob3";
@@ -22,21 +23,58 @@ type Owned = {
   resize?: () => void;
 };
 
+/**
+ * Flat scene sync: ECS GlobalTransform → Object3D.
+ * Three parenting is NOT authoritative; objects stay under Scene.
+ * Change-aware: only sync GlobalTransform (or Transform fallback) changed this tick.
+ */
 export const syncTransforms = system({
   name: "syncTransforms",
   access: {
-    read: [Transform],
+    read: [GlobalTransform, Transform],
     write: [ThreeObject],
   },
   run(world) {
-    for (const [, transform, three] of world.query(Transform, ThreeObject)) {
-      const obj = three.object;
-      obj.position.set(transform.x, transform.y, transform.z);
-      obj.rotation.set(transform.rx, transform.ry, transform.rz);
-      obj.scale.set(transform.sx, transform.sy, transform.sz);
+    // Prefer changed globals; also sync newly added ThreeObject
+    for (const [, global, three] of world
+      .query(GlobalTransform, ThreeObject)
+      .changed(GlobalTransform)) {
+      applyTrs(three.object, global);
+    }
+    for (const [, global, three] of world
+      .query(GlobalTransform, ThreeObject)
+      .added(ThreeObject)) {
+      applyTrs(three.object, global);
+    }
+    // Fallback: Transform+ThreeObject without GlobalTransform yet
+    for (const [e, transform, three] of world.query(Transform, ThreeObject)) {
+      if (world.has(e, GlobalTransform)) continue;
+      if (!world.isChanged(e, Transform) && !world.isAdded(e, ThreeObject)) {
+        continue;
+      }
+      applyTrs(three.object, transform);
     }
   },
 });
+
+function applyTrs(
+  obj: THREE.Object3D,
+  t: {
+    x: number;
+    y: number;
+    z: number;
+    rx: number;
+    ry: number;
+    rz: number;
+    sx: number;
+    sy: number;
+    sz: number;
+  },
+): void {
+  obj.position.set(t.x, t.y, t.z);
+  obj.rotation.set(t.rx, t.ry, t.rz);
+  obj.scale.set(t.sx, t.sy, t.sz);
+}
 
 export const renderFrame = system({
   name: "renderFrame",

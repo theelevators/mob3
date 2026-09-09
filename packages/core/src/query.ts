@@ -24,6 +24,8 @@ export class Query<Cs extends readonly ComponentType[] = ComponentType[]>
   private readonly required: ComponentType[];
   private readonly withTypes: ComponentType[] = [];
   private readonly withoutTypes: ComponentType[] = [];
+  private changedTypes: ComponentType[] = [];
+  private addedTypes: ComponentType[] = [];
 
   constructor(
     private readonly world: World,
@@ -39,6 +41,18 @@ export class Query<Cs extends readonly ComponentType[] = ComponentType[]>
 
   without(...types: ComponentType[]): this {
     this.withoutTypes.push(...types);
+    return this;
+  }
+
+  /** Entities where any listed type changed this frame tick. */
+  changed(...types: ComponentType[]): this {
+    this.changedTypes.push(...(types.length ? types : this.required));
+    return this;
+  }
+
+  /** Entities where any listed type was added this frame tick. */
+  added(...types: ComponentType[]): this {
+    this.addedTypes.push(...(types.length ? types : this.required));
     return this;
   }
 
@@ -108,6 +122,28 @@ export class Query<Cs extends readonly ComponentType[] = ComponentType[]>
         }
       }
       if (!ok) continue;
+
+      if (this.changedTypes.length) {
+        let any = false;
+        for (const type of this.changedTypes) {
+          if (this.world.isChanged(entity, type)) {
+            any = true;
+            break;
+          }
+        }
+        if (!any) continue;
+      }
+
+      if (this.addedTypes.length) {
+        let any = false;
+        for (const type of this.addedTypes) {
+          if (this.world.isAdded(entity, type)) {
+            any = true;
+            break;
+          }
+        }
+        if (!any) continue;
+      }
 
       yield entity;
     }
