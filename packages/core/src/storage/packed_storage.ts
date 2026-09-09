@@ -50,6 +50,21 @@ export class PackedStorage implements ComponentStorage {
     return this.count;
   }
 
+  get capacitySlots(): number {
+    return this.capacity;
+  }
+
+  get generation(): number {
+    return this.structGen;
+  }
+
+  /** Dense entity ids for live slots `[0, count)`. */
+  entityIds(): Uint32Array {
+    const out = new Uint32Array(this.count);
+    for (let i = 0; i < this.count; i++) out[i] = this.slotToEntity[i]! >>> 0;
+    return out;
+  }
+
   /** Column arrays (length === capacity; live length is `size`). */
   column(field: string): Column {
     const i = this.fields.indexOf(field);

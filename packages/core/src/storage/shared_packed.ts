@@ -62,6 +62,17 @@ export class SharedPackedStorage implements ComponentStorage {
     return this.count;
   }
 
+  get generation(): number {
+    return this.structGen;
+  }
+
+  /** Dense entity ids for live slots `[0, count)`. */
+  entityIds(): Uint32Array {
+    const out = new Uint32Array(this.count);
+    for (let i = 0; i < this.count; i++) out[i] = this.slotToEntity[i]! >>> 0;
+    return out;
+  }
+
   get sharedBuffer(): SharedArrayBuffer {
     return this.sab;
   }

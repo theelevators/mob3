@@ -19,7 +19,7 @@ type Pending = {
 };
 
 type Adapter = {
-  post(msg: unknown): void;
+  post(msg: unknown, transferList?: ArrayBuffer[]): void;
   terminate(): void;
 };
 
@@ -31,6 +31,8 @@ export interface WorkerPool {
     exportName: string,
     payload: WorkerPayload | Record<string, unknown>,
     systemName: string,
+    /** Optional ArrayBuffers to transfer (ABI local/copy path). */
+    transferList?: ArrayBuffer[],
   ): Promise<WorkerResult>;
   dispose(): void;
 }
@@ -102,7 +104,10 @@ export function createWorkerPool(options: WorkerPoolOptions = {}): WorkerPool {
       for (let i = 0; i < size; i++) {
         const w = new Worker(entry, { workerData: null });
         const adapter: Adapter = {
-          post: (msg) => w.postMessage(msg),
+          post: (msg, transferList) =>
+            transferList?.length
+              ? w.postMessage(msg, transferList)
+              : w.postMessage(msg),
           terminate: () => {
             void w.terminate();
           },
@@ -120,7 +125,10 @@ export function createWorkerPool(options: WorkerPoolOptions = {}): WorkerPool {
       for (let i = 0; i < size; i++) {
         const w = new Worker(entry, { type: "module" });
         const adapter: Adapter = {
-          post: (msg) => w.postMessage(msg),
+          post: (msg, transferList) =>
+            transferList?.length
+              ? w.postMessage(msg, transferList)
+              : w.postMessage(msg),
           terminate: () => w.terminate(),
         };
         w.onmessage = (ev) => {
@@ -165,7 +173,7 @@ export function createWorkerPool(options: WorkerPoolOptions = {}): WorkerPool {
   return {
     size: available ? all.length : size,
     available,
-    async runJob(moduleUrl, exportName, payload, systemName) {
+    async runJob(moduleUrl, exportName, payload, systemName, transferList) {
       if (disposed) throw new Error("WorkerPool has been disposed");
       if (!available) throw new Error("WorkerPool unavailable");
 
@@ -186,13 +194,14 @@ export function createWorkerPool(options: WorkerPoolOptions = {}): WorkerPool {
           systemName,
           worker,
         });
-        worker.post({
+        const msg = {
           type: "job",
           id,
           moduleUrl,
           exportName,
           payload,
-        });
+        };
+        worker.post(msg, transferList);
         void origFinish;
       });
     },

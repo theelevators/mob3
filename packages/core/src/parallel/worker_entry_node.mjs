@@ -1,15 +1,15 @@
 /**
- * Node worker entry — supports Phase 5 copy jobs and Phase 6 shared SAB jobs.
+ * Node worker entry — Phase 5 copy, Phase 6 shared, Phase 7 ABI.
  */
 import { parentPort } from "node:worker_threads";
+import { isAbiInvocation, runAbiExport } from "../abi/runtime.mjs";
 
 if (!parentPort) {
   throw new Error("mob3 worker_entry_node must run inside worker_threads");
 }
 
 function columnsFromDesc(desc) {
-  const bytesPerField = (kind) =>
-    kind === "f64" ? 8 : 4;
+  const bytesPerField = (kind) => (kind === "f64" ? 8 : 4);
   const make = (kind, buffer, offset, length) => {
     switch (kind) {
       case "f32":
@@ -46,9 +46,26 @@ parentPort.on("message", async (msg) => {
     }
     const t0 = performance.now();
     const mod = await import(moduleUrl);
-    const fn = mod[exportName];
-    if (typeof fn !== "function") {
+    const exported = mod[exportName];
+    if (exported == null) {
       throw new Error(`Export '${exportName}' not found in ${moduleUrl}`);
+    }
+
+    // Phase 7 ABI invocation
+    if (isAbiInvocation(payload)) {
+      const result = runAbiExport(exported, payload);
+      parentPort.postMessage({
+        type: "result",
+        id,
+        result,
+      });
+      return;
+    }
+
+    if (typeof exported !== "function") {
+      throw new Error(
+        `Export '${exportName}' must be a function for legacy worker payloads`,
+      );
     }
 
     let jobPayload = payload;
@@ -67,7 +84,7 @@ parentPort.on("message", async (msg) => {
       };
     }
 
-    const result = fn(jobPayload);
+    const result = exported(jobPayload);
     const execMs = performance.now() - t0;
     parentPort.postMessage({
       type: "result",

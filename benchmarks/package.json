@@ -8,7 +8,8 @@
     "bench:mixed": "tsx src/mixed-bench.ts",
     "bench:planner": "tsx src/planner-bench.ts",
     "bench:parallel": "tsx src/parallel-bench.ts",
-    "bench:storage": "tsx src/storage-bench.ts"
+    "bench:storage": "tsx src/storage-bench.ts",
+    "bench:abi": "tsx src/abi-bench.ts"
   },
   "dependencies": {
     "mob3": "0.1.0"
