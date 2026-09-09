@@ -9,4 +9,9 @@ export {
   type ThreePluginOptions,
 } from "./components.js";
 
-export { ThreePlugin, syncTransforms, renderFrame } from "./plugin.js";
+export {
+  ThreePlugin,
+  syncTransforms,
+  renderFrame,
+  detachPendingThreeObjects,
+} from "./plugin.js";

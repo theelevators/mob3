@@ -11,8 +11,9 @@ import {
   PostRender,
   type ScheduleLabel,
   type SystemFn,
+  type SystemConstraints,
 } from "./schedule.js";
-import type { Plugin, PluginFactory } from "./plugin.js";
+import { normalizePlugin, type Plugin, type PluginFactory } from "./plugin.js";
 import { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 import type { ResourceKey } from "./resource.js";
 
@@ -21,22 +22,19 @@ export type AppRunner = (app: App) => void;
 function browserRunner(app: App): void {
   let last = performance.now();
   const frame = (now: number) => {
+    if (app.isDisposed) return;
     const dt = (now - last) / 1000;
     last = now;
     app.update(dt);
-    app._rafId = requestAnimationFrame(frame);
+    if (!app.isDisposed) {
+      app._rafId = requestAnimationFrame(frame);
+    }
   };
   app._rafId = requestAnimationFrame(frame);
 }
 
 /**
  * Ergonomic composition layer over World + Scheduler.
- *
- * Headless:
- * ```ts
- * const app = new App();
- * app.update(1 / 60);
- * ```
  */
 export class App {
   readonly world: World = new World();
@@ -44,7 +42,9 @@ export class App {
 
   private runner: AppRunner = browserRunner;
   private started = false;
+  private disposed = false;
   private plugins: Plugin[] = [];
+  private disposeHooks: Array<(app: App) => void> = [];
   /** @internal */
   _rafId: number | null = null;
 
@@ -52,47 +52,64 @@ export class App {
     this.world.insertResource(Time, createTime());
   }
 
+  get isDisposed(): boolean {
+    return this.disposed;
+  }
+
   addPlugin(plugin: PluginFactory): this {
-    const normalized: Plugin =
-      typeof plugin === "function" ? { build: plugin } : plugin;
+    this.assertNotDisposed();
+    const normalized = normalizePlugin(plugin);
     this.plugins.push(normalized);
     normalized.build(this);
     return this;
   }
 
-  addSystem(label: ScheduleLabel, system: SystemFn): this {
-    this.schedule.addSystem(label, system);
+  addSystem(
+    label: ScheduleLabel,
+    system: SystemFn,
+    constraints?: SystemConstraints,
+  ): this {
+    this.assertNotDisposed();
+    this.schedule.addSystem(label, system, constraints);
+    return this;
+  }
+
+  /** Add before/after constraints for an existing system in a schedule. */
+  order(
+    label: ScheduleLabel,
+    system: SystemFn,
+    constraints: SystemConstraints,
+  ): this {
+    this.assertNotDisposed();
+    this.schedule.order(label, system, constraints);
     return this;
   }
 
   insertResource<T>(key: ResourceKey<T>, value: T): this {
+    this.assertNotDisposed();
     this.world.insertResource(key, value);
     return this;
   }
 
   setRunner(runner: AppRunner): this {
+    this.assertNotDisposed();
     this.runner = runner;
     return this;
   }
 
   setFixedDelta(seconds: number): this {
-    const time = this.world.resource(Time);
-    time.fixedDelta = seconds;
+    this.world.resource(Time).fixedDelta = seconds;
     return this;
   }
 
-  /**
-   * Advance the app by `deltaSeconds`.
-   * Safe for tests and headless simulation.
-   *
-   * During FixedUpdate, `Time.delta` equals `Time.fixedDelta`.
-   *
-   * Event lifetime:
-   * - Cleared at the start of each FixedUpdate step (no cross-step replay).
-   * - Remaining events (e.g. from the last FixedUpdate) are visible to Update+.
-   * - Cleared again at the end of the frame.
-   */
+  /** Register cleanup invoked once from `dispose()`. */
+  onDispose(fn: (app: App) => void): this {
+    this.disposeHooks.push(fn);
+    return this;
+  }
+
   update(deltaSeconds: number): void {
+    this.assertNotDisposed();
     this.ensureStartup();
 
     const time = this.world.resource(Time);
@@ -126,15 +143,40 @@ export class App {
   }
 
   run(): this {
+    this.assertNotDisposed();
     this.ensureStartup();
     this.runner(this);
     return this;
   }
 
+  /** Stop the browser animation loop (does not dispose plugins). */
   stop(): void {
     if (this._rafId !== null && typeof cancelAnimationFrame !== "undefined") {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
+    }
+  }
+
+  /**
+   * Stop the runner and dispose all plugins / onDispose hooks.
+   * Idempotent.
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    this.stop();
+    this.disposed = true;
+    for (let i = this.plugins.length - 1; i >= 0; i--) {
+      this.plugins[i]!.dispose?.(this);
+    }
+    for (let i = this.disposeHooks.length - 1; i >= 0; i--) {
+      this.disposeHooks[i]!(this);
+    }
+    this.disposeHooks.length = 0;
+  }
+
+  private assertNotDisposed(): void {
+    if (this.disposed) {
+      throw new Error("App has been disposed");
     }
   }
 

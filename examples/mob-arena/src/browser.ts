@@ -1,35 +1,54 @@
 /**
- * Browser Mob Arena — keyboard + Three.js visuals on the shared simulation.
+ * Browser Mob Arena — Input + Rapier + Three + gameplay.
  */
-import { Startup, FixedUpdate, Update, type World, type Commands } from "mob3";
-import { ThreePlugin, ThreeScene, ThreeObject, ThreeCamera } from "@mob3/three";
+import { Startup, Update, type World } from "mob3";
+import { InputPlugin } from "@mob3/input";
+import { initRapier, RapierPlugin } from "@mob3/rapier";
+import {
+  ThreePlugin,
+  ThreeScene,
+  ThreeObject,
+  ThreeCamera,
+  detachPendingThreeObjects,
+} from "@mob3/three";
 import * as THREE from "three";
-import { createGame } from "./game.js";
+import { App, FixedUpdate } from "mob3";
+import { MobArenaPlugin, despawnPending } from "./systems.js";
 import {
   Transform,
   Enemy,
   Projectile,
   Health,
-  Input,
   Score,
   GameMeta,
+  Player,
   PendingDespawn,
 } from "./components.js";
-import { despawnPending } from "./systems.js";
 
 const canvas = document.querySelector("#c") as HTMLCanvasElement;
 const hud = document.querySelector("#hud") as HTMLDivElement;
 
-const game = createGame({ seed: 7, autoDespawn: false });
-const { app, world } = game;
+await initRapier();
 
-app.addPlugin(
-  ThreePlugin({
-    canvas,
-    antialias: true,
-    clearColor: 0x0a0c10,
-  }),
-);
+const app = new App()
+  .addPlugin(InputPlugin({ preventDefault: ["Space"] }))
+  .addPlugin(RapierPlugin({ gravity: { x: 0, y: 0, z: 0 } }))
+  .addPlugin(
+    ThreePlugin({
+      canvas,
+      antialias: true,
+      clearColor: 0x0a0c10,
+    }),
+  )
+  .addPlugin(MobArenaPlugin({ seed: 7 }));
+
+// Ensure despawn runs after Three detach (Three registers detach; order it)
+app.order(FixedUpdate, detachPendingThreeObjects, {
+  before: despawnPending,
+});
+app.order(Update, detachPendingThreeObjects, {
+  before: despawnPending,
+});
 
 const enemyGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
 const projectileGeo = new THREE.SphereGeometry(0.22, 8, 8);
@@ -64,9 +83,8 @@ function setupVisuals(world: World): void {
   world.add(meta.player, ThreeObject(mesh));
 }
 
-function attachMeshes(world: World, commands: Commands): void {
+function attachMeshes(world: World): void {
   const scene = world.resource(ThreeScene);
-
   for (const [entity] of world.query(Transform).with(Enemy).without(PendingDespawn)) {
     if (world.has(entity, ThreeObject)) continue;
     const mesh = new THREE.Mesh(
@@ -74,9 +92,8 @@ function attachMeshes(world: World, commands: Commands): void {
       new THREE.MeshStandardMaterial({ color: 0xff6b6b }),
     );
     scene.add(mesh);
-    commands.add(entity, ThreeObject(mesh));
+    world.add(entity, ThreeObject(mesh));
   }
-
   for (const [entity] of world
     .query(Transform)
     .with(Projectile)
@@ -87,13 +104,7 @@ function attachMeshes(world: World, commands: Commands): void {
       new THREE.MeshStandardMaterial({ color: 0xffe66d }),
     );
     scene.add(mesh);
-    commands.add(entity, ThreeObject(mesh));
-  }
-}
-
-function detachPendingMeshes(world: World): void {
-  for (const [, three] of world.query(ThreeObject).with(PendingDespawn)) {
-    three.object.removeFromParent();
+    world.add(entity, ThreeObject(mesh));
   }
 }
 
@@ -106,51 +117,10 @@ function updateHud(world: World): void {
     : `HP ${Math.ceil(health)} · kills ${score.kills} · entities ${world.entityCount()} · WASD move · Space shoot · R restart`;
 }
 
-function bindKeyboard(world: World): void {
-  const input = world.resource(Input);
-  const setKey = (code: string, down: boolean) => {
-    switch (code) {
-      case "KeyW":
-      case "ArrowUp":
-        input.up = down;
-        break;
-      case "KeyS":
-      case "ArrowDown":
-        input.down = down;
-        break;
-      case "KeyA":
-      case "ArrowLeft":
-        input.left = down;
-        break;
-      case "KeyD":
-      case "ArrowRight":
-        input.right = down;
-        break;
-      case "Space":
-        if (down && !input.fire) input.firePressed = true;
-        input.fire = down;
-        break;
-      case "KeyR":
-        if (down && !input.restart) input.restartPressed = true;
-        input.restart = down;
-        break;
-    }
-  };
-  window.addEventListener("keydown", (e) => {
-    setKey(e.code, true);
-    if (e.code === "Space" || e.code.startsWith("Arrow")) e.preventDefault();
-  });
-  window.addEventListener("keyup", (e) => setKey(e.code, false));
-}
-
-bindKeyboard(world);
-
 app.addSystem(Startup, setupVisuals);
-app.addSystem(FixedUpdate, attachMeshes);
-app.addSystem(FixedUpdate, detachPendingMeshes);
-app.addSystem(FixedUpdate, despawnPending);
-app.addSystem(Update, detachPendingMeshes);
-app.addSystem(Update, despawnPending);
+app.addSystem(FixedUpdate, attachMeshes, { before: despawnPending });
 app.addSystem(Update, updateHud);
 
 app.run();
+
+void Player;

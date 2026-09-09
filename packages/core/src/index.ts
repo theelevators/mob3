@@ -51,6 +51,9 @@ export {
 export { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 
 export { Transform, type TransformData } from "./transform.js";
+export { PendingDespawn } from "./pending_despawn.js";
 
 export { App, type AppRunner } from "./app.js";
 export type { Plugin, PluginFactory } from "./plugin.js";
+export { normalizePlugin } from "./plugin.js";
+export type { SystemConstraints } from "./schedule.js";

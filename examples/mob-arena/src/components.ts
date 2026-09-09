@@ -1,9 +1,9 @@
 /**
- * Mob Arena — shared gameplay components & resources.
- * No Three.js imports.
+ * Mob Arena gameplay components — no Three / DOM / Rapier imports.
  */
 import {
   Transform,
+  PendingDespawn,
   component,
   tag,
   resource,
@@ -11,7 +11,7 @@ import {
   type Entity,
 } from "mob3";
 
-export { Transform };
+export { Transform, PendingDespawn };
 
 export const Velocity = component({ x: 0, y: 0, z: 0 });
 
@@ -19,13 +19,10 @@ export const Player = tag("Player");
 export const Enemy = tag("Enemy");
 export const Projectile = tag("Projectile");
 export const Dead = tag("Dead");
-/** Marked for structural removal after optional view cleanup. */
-export const PendingDespawn = tag("PendingDespawn");
 
 export const Health = component({ value: 100 });
 export const Damage = component({ value: 10 });
 export const Lifetime = component({ remaining: 1 });
-export const Collider = component({ radius: 0.5 });
 
 export const Score = resource<{ kills: number; deaths: number }>("Score");
 export const SpawnConfig = resource<{
@@ -40,17 +37,6 @@ export const SpawnConfig = resource<{
   playerSpeed: number;
   arenaRadius: number;
 }>("SpawnConfig");
-
-export const Input = resource<{
-  up: boolean;
-  down: boolean;
-  left: boolean;
-  right: boolean;
-  fire: boolean;
-  firePressed: boolean;
-  restart: boolean;
-  restartPressed: boolean;
-}>("Input");
 
 export type Rng = {
   next(): number;
@@ -103,18 +89,5 @@ export function createDefaultSpawnConfig() {
     projectileLifetime: 1.4,
     playerSpeed: 7,
     arenaRadius: 18,
-  };
-}
-
-export function createDefaultInput() {
-  return {
-    up: false,
-    down: false,
-    left: false,
-    right: false,
-    fire: false,
-    firePressed: false,
-    restart: false,
-    restartPressed: false,
   };
 }

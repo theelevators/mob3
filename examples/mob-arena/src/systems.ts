@@ -1,40 +1,69 @@
 /**
- * Mob Arena gameplay systems — pure ECS, no Three.js.
+ * Mob Arena gameplay systems — ECS only.
+ * Uses @mob3/input Input resource and @mob3/rapier CollisionStarted.
  */
 import {
   type World,
   type Commands,
+  type App,
+  type Plugin,
   Time,
   FixedUpdate,
   Update,
-  type App,
-} from "mob3";
-import {
+  Startup,
+  PendingDespawn,
   Transform,
+} from "mob3";
+import { Input } from "@mob3/input";
+import {
+  RigidBody,
+  PhysicsCollider,
+  CollisionStarted,
+  writeKinematicTransforms,
+  emitCollisionEvents,
+  cleanupPhysicsBodies,
+  PhysicsWorld,
+} from "@mob3/rapier";
+import {
   Velocity,
   Player,
   Enemy,
   Projectile,
   Dead,
-  PendingDespawn,
   Health,
   Damage,
   Lifetime,
-  Collider,
   Score,
   SpawnConfig,
-  Input,
   Random,
   GameMeta,
   DamageEvent,
   DeathEvent,
   createDefaultSpawnConfig,
+  createRng,
 } from "./components.js";
 
 function countEnemies(world: World): number {
   let n = 0;
   for (const _ of world.query(Enemy).without(Dead)) n++;
   return n;
+}
+
+function ballCollider(radius: number) {
+  return PhysicsCollider({
+    shape: "ball",
+    radius,
+    hx: radius,
+    hy: radius,
+    hz: radius,
+    sensor: false,
+    membership: 0xffff,
+    filter: 0xffff,
+  });
+}
+
+function kinematicBody() {
+  return RigidBody({ kind: "kinematicPosition", lx: 0, ly: 0, lz: 0 });
 }
 
 export function playerMovement(world: World): void {
@@ -48,10 +77,10 @@ export function playerMovement(world: World): void {
     .without(Dead)) {
     let x = 0;
     let z = 0;
-    if (input.up) z -= 1;
-    if (input.down) z += 1;
-    if (input.left) x -= 1;
-    if (input.right) x += 1;
+    if (input.pressed("KeyW") || input.pressed("ArrowUp")) z -= 1;
+    if (input.pressed("KeyS") || input.pressed("ArrowDown")) z += 1;
+    if (input.pressed("KeyA") || input.pressed("ArrowLeft")) x -= 1;
+    if (input.pressed("KeyD") || input.pressed("ArrowRight")) x += 1;
     const len = Math.hypot(x, z);
     if (len > 0) {
       x /= len;
@@ -84,7 +113,6 @@ export function enemySpawn(world: World, commands: Commands): void {
   }
 
   config.timer = config.interval;
-
   const angle = rng.next() * Math.PI * 2;
   const dist = config.arenaRadius * (0.75 + rng.next() * 0.25);
 
@@ -98,7 +126,8 @@ export function enemySpawn(world: World, commands: Commands): void {
     Enemy,
     Health({ value: config.enemyHealth }),
     Damage({ value: 8 }),
-    Collider({ radius: 0.45 }),
+    kinematicBody(),
+    ballCollider(0.45),
   );
 }
 
@@ -106,7 +135,6 @@ export function enemyAi(world: World): void {
   const config = world.resource(SpawnConfig);
   const meta = world.resource(GameMeta);
   if (!world.isAlive(meta.player)) return;
-
   const playerTransform = world.get(meta.player, Transform);
   if (!playerTransform) return;
 
@@ -138,7 +166,7 @@ export function projectileSpawn(world: World, commands: Commands): void {
   const config = world.resource(SpawnConfig);
   const meta = world.resource(GameMeta);
   if (meta.gameOver) return;
-  if (!input.firePressed) return;
+  if (!input.justPressed("Space")) return;
   if (!world.isAlive(meta.player) || world.has(meta.player, Dead)) return;
 
   const playerT = world.get(meta.player, Transform);
@@ -170,7 +198,8 @@ export function projectileSpawn(world: World, commands: Commands): void {
     Projectile,
     Damage({ value: config.projectileDamage }),
     Lifetime({ remaining: config.projectileLifetime }),
-    Collider({ radius: 0.25 }),
+    kinematicBody(),
+    ballCollider(0.25),
   );
 }
 
@@ -184,59 +213,39 @@ export function lifetimeSystem(world: World, commands: Commands): void {
   }
 }
 
-export function collision(world: World, commands: Commands): void {
-  const projectiles = world
-    .query(Transform, Collider, Damage)
-    .with(Projectile)
-    .without(Dead)
-    .without(PendingDespawn)
-    .collect();
-  const enemies = world
-    .query(Transform, Collider, Health)
-    .with(Enemy)
-    .without(Dead)
-    .without(PendingDespawn)
-    .collect();
-  const players = world
-    .query(Transform, Collider, Health)
-    .with(Player)
-    .without(Dead)
-    .collect();
+/** Translate Rapier collision events into DamageEvent. */
+export function collisionDamage(world: World, commands: Commands): void {
+  const { delta } = world.resource(Time);
 
-  for (const [proj, pt, pc, pd] of projectiles) {
-    for (const [enemy, et, ec] of enemies) {
-      const dx = pt.x - et.x;
-      const dz = pt.z - et.z;
-      const r = pc.radius + ec.radius;
-      if (dx * dx + dz * dz <= r * r) {
-        world.send(DamageEvent, {
-          target: enemy,
-          amount: pd.value,
-          source: proj,
-        });
-        commands.add(proj, PendingDespawn);
-        break;
-      }
-    }
+  for (const hit of world.events(CollisionStarted)) {
+    const { a, b } = hit;
+    pairDamage(world, commands, a, b, delta);
+    pairDamage(world, commands, b, a, delta);
+  }
+}
+
+function pairDamage(
+  world: World,
+  commands: Commands,
+  source: number,
+  target: number,
+  delta: number,
+): void {
+  if (!world.isAlive(source) || !world.isAlive(target)) return;
+
+  if (world.has(source, Projectile) && world.has(target, Enemy)) {
+    const dmg = world.get(source, Damage)?.value ?? 10;
+    world.send(DamageEvent, { target, amount: dmg, source });
+    commands.add(source, PendingDespawn);
   }
 
-  const { delta } = world.resource(Time);
-  for (const [enemy] of enemies) {
-    const et = world.get(enemy, Transform)!;
-    const ec = world.get(enemy, Collider)!;
-    const enemyDamage = world.get(enemy, Damage)?.value ?? 8;
-    for (const [player, pt, pc] of players) {
-      const dx = pt.x - et.x;
-      const dz = pt.z - et.z;
-      const r = pc.radius + ec.radius;
-      if (dx * dx + dz * dz <= r * r) {
-        world.send(DamageEvent, {
-          target: player,
-          amount: enemyDamage * delta,
-          source: enemy,
-        });
-      }
-    }
+  if (world.has(source, Enemy) && world.has(target, Player)) {
+    const dmg = world.get(source, Damage)?.value ?? 8;
+    world.send(DamageEvent, {
+      target,
+      amount: dmg * delta,
+      source,
+    });
   }
 }
 
@@ -255,12 +264,10 @@ export function applyDamage(world: World): void {
 export function deathSystem(world: World, commands: Commands): void {
   for (const [entity, health] of world.query(Health).without(Dead)) {
     if (health.value > 0) continue;
-
     const wasEnemy = world.has(entity, Enemy);
     const wasPlayer = world.has(entity, Player);
     world.send(DeathEvent, { entity, wasEnemy, wasPlayer });
     commands.add(entity, Dead);
-
     if (wasEnemy) {
       world.resource(Score).kills += 1;
       commands.add(entity, PendingDespawn);
@@ -272,7 +279,6 @@ export function deathSystem(world: World, commands: Commands): void {
   }
 }
 
-/** Final structural removal — runs after optional browser mesh cleanup. */
 export function despawnPending(world: World, commands: Commands): void {
   for (const [entity] of world.query(PendingDespawn)) {
     commands.despawn(entity);
@@ -285,7 +291,7 @@ export function tickMeta(world: World): void {
 
 export function restartSystem(world: World, commands: Commands): void {
   const input = world.resource(Input);
-  if (!input.restartPressed) return;
+  if (!input.justPressed("KeyR")) return;
 
   for (const [e] of world.query(Enemy)) commands.add(e, PendingDespawn);
   for (const [e] of world.query(Projectile)) commands.add(e, PendingDespawn);
@@ -307,9 +313,6 @@ export function restartSystem(world: World, commands: Commands): void {
       v.z = 0;
     }
     if (world.has(meta.player, Dead)) world.remove(meta.player, Dead);
-    if (world.has(meta.player, PendingDespawn)) {
-      world.remove(meta.player, PendingDespawn);
-    }
   }
 
   const score = world.resource(Score);
@@ -319,26 +322,93 @@ export function restartSystem(world: World, commands: Commands): void {
   meta.gameOver = false;
 }
 
-export function clearInputEdges(world: World): void {
-  const input = world.resource(Input);
-  input.firePressed = false;
-  input.restartPressed = false;
-}
+export type MobArenaOptions = {
+  seed?: number;
+  fixedDelta?: number;
+};
 
-export function addGameplaySystems(app: App): void {
-  app
-    .addSystem(FixedUpdate, playerMovement)
-    .addSystem(FixedUpdate, enemySpawn)
-    .addSystem(FixedUpdate, enemyAi)
-    .addSystem(FixedUpdate, projectileSpawn)
-    .addSystem(FixedUpdate, movement)
-    .addSystem(FixedUpdate, lifetimeSystem)
-    .addSystem(FixedUpdate, collision)
-    .addSystem(FixedUpdate, applyDamage)
-    .addSystem(FixedUpdate, deathSystem)
-    // despawnPending is registered by the runner (headless/browser)
-    // so view layers can detach meshes first.
-    .addSystem(FixedUpdate, tickMeta)
-    .addSystem(Update, restartSystem)
-    .addSystem(Update, clearInputEdges);
+/**
+ * Gameplay plugin. Requires Input + PhysicsWorld by Startup
+ * (add Input/Rapier plugins before `app.run()` / first update — order among
+ * addPlugin calls does not matter).
+ */
+export function MobArenaPlugin(options: MobArenaOptions = {}): Plugin {
+  const seed = options.seed ?? 42;
+
+  return {
+    build(app: App) {
+      if (options.fixedDelta) app.setFixedDelta(options.fixedDelta);
+
+      app.insertResource(Score, { kills: 0, deaths: 0 });
+      app.insertResource(SpawnConfig, createDefaultSpawnConfig());
+      app.insertResource(Random, createRng(seed));
+
+      app.addSystem(Startup, (world) => {
+        if (!world.hasResource(Input)) {
+          throw new Error(
+            "MobArenaPlugin requires Input — add InputPlugin or SyntheticInputPlugin",
+          );
+        }
+        if (!world.hasResource(PhysicsWorld)) {
+          throw new Error(
+            "MobArenaPlugin requires PhysicsWorld — add RapierPlugin",
+          );
+        }
+        if (world.hasResource(GameMeta)) return;
+
+        const player = world.spawn(
+          Transform({ x: 0, y: 0.5, z: 0 }),
+          Velocity(),
+          Player,
+          Health({ value: 100 }),
+          kinematicBody(),
+          ballCollider(0.5),
+        );
+        world.insertResource(GameMeta, { player, tick: 0, gameOver: false });
+      });
+
+      app.addSystem(FixedUpdate, playerMovement, {
+        before: writeKinematicTransforms,
+      });
+      app.addSystem(FixedUpdate, enemySpawn, {
+        before: writeKinematicTransforms,
+      });
+      app.addSystem(FixedUpdate, enemyAi, {
+        before: writeKinematicTransforms,
+      });
+      app.addSystem(FixedUpdate, projectileSpawn, {
+        before: writeKinematicTransforms,
+      });
+      app.addSystem(FixedUpdate, movement, {
+        before: writeKinematicTransforms,
+      });
+      app.addSystem(FixedUpdate, lifetimeSystem, {
+        before: writeKinematicTransforms,
+      });
+
+      app.addSystem(FixedUpdate, collisionDamage, {
+        after: emitCollisionEvents,
+      });
+      app.addSystem(FixedUpdate, applyDamage, {
+        after: collisionDamage,
+      });
+      app.addSystem(FixedUpdate, deathSystem, {
+        after: applyDamage,
+      });
+
+      app.order(FixedUpdate, cleanupPhysicsBodies, {
+        after: deathSystem,
+      });
+
+      app.addSystem(FixedUpdate, despawnPending, {
+        after: cleanupPhysicsBodies,
+      });
+      app.addSystem(FixedUpdate, tickMeta);
+
+      app.addSystem(Update, restartSystem);
+      app.addSystem(Update, despawnPending, {
+        after: restartSystem,
+      });
+    },
+  };
 }
