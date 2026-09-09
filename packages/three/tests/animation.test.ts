@@ -221,6 +221,28 @@ describe("Phase 11 animation", () => {
     }
   });
 
+  it("no stale AnimationFinished after despawn", () => {
+    const { app, handle } = makeApp();
+    const e = instantiateAnimatedGltf(app.world, handle);
+    const finished: number[] = [];
+    app.addSystem(
+      Update,
+      (world) => {
+        for (const ev of world.events(AnimationFinished)) {
+          finished.push(ev.entity);
+        }
+      },
+      { after: animationEventFlush },
+    );
+    playAnimation(app.world, e, "Idle", { loop: false, fadeDuration: 0 });
+    for (let i = 0; i < 30; i++) app.update(1 / 60);
+    despawnAnimatedGltf(app.world, e);
+    const before = finished.length;
+    for (let i = 0; i < 120; i++) app.update(1 / 60);
+    expect(finished.length).toBe(before);
+    app.dispose();
+  });
+
   it("100 instances independent mixers share clip defs", () => {
     const { app, handle } = makeApp();
     const ents = Array.from({ length: 100 }, (_, i) =>

@@ -8,7 +8,7 @@ import {
 import type { AssetHandle } from "@mob3/assets";
 import { assetsOf } from "@mob3/assets";
 import * as THREE from "three";
-import { SkeletonUtils } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { ThreeObject, ThreeScene } from "../components.js";
 import type { GltfAssetData } from "../assets/gltf.js";
 import { AssetInstanceRef, releaseGltfInstance } from "../assets/instantiate.js";
@@ -27,9 +27,7 @@ function cloneAnimatedRoot(scene: THREE.Object3D): THREE.Object3D {
   scene.traverse((o) => {
     if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned = true;
   });
-  return skinned
-    ? (SkeletonUtils.clone(scene) as THREE.Object3D)
-    : scene.clone(true);
+  return skinned ? (skeletonClone(scene) as THREE.Object3D) : scene.clone(true);
 }
 
 export type InstantiateAnimatedOptions = {

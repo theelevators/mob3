@@ -14,7 +14,7 @@ function requirePlayer(world: World, entity: Entity) {
   }
   let player = world.getMut(entity, AnimationPlayer);
   if (!player) {
-    world.add(entity, AnimationPlayer());
+    world.add(entity, AnimationPlayer() as never);
     player = world.getMut(entity, AnimationPlayer)!;
   }
   return player;
