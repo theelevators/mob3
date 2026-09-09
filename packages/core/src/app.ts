@@ -109,10 +109,16 @@ export class App {
   }
 
   /**
-   * Enable schedule diagnostics (timings). Cheap to leave off for production.
+   * Enable schedule diagnostics (timings / strict validation).
+   * Cheap to leave off for production.
    */
-  enableDiagnostics(options: { timings?: boolean } = {}): this {
+  enableDiagnostics(
+    options: { timings?: boolean; strict?: boolean } = {},
+  ): this {
     this.schedule.enableTimings(options.timings ?? true);
+    if (options.strict !== undefined) {
+      this.schedule.enableStrict(options.strict);
+    }
     return this;
   }
 

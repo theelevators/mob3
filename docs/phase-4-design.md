@@ -72,8 +72,9 @@ Determinism: same registration + constraints → same order as Phase 3 topo sort
 ## 7. Validation
 
 - **Default:** trust declarations; no hot-path checks
-- **`app.enableDiagnostics({ validateAccess: true })`:** while a declared system runs, `get`/`resource`/`query` check declared access (structural call sites only — mutating a read `get` result is undetectable without proxies; we document that honesty contract)
-- No production proxies
+- **Honesty contract:** `get`-then-mutate after a declared `read` is undetectable without proxies — Phase 4 does not install production proxies
+- **`app.enableDiagnostics({ strict: true })`:** missing ordering targets and unordered declared conflicts become errors; cycles always error
+- Optional World access-context validation deferred (invasive for limited gain once mutation-after-get is admitted) — see findings
 
 ## 8. Instrumentation
 

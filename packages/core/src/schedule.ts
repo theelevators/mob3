@@ -58,6 +58,13 @@ function asArray(v?: SystemFn | SystemFn[]): SystemFn[] {
 export type ScheduleDiagnosticsOptions = {
   /** Record per-system timings. */
   timings?: boolean;
+  /**
+   * Strict compilation:
+   * - missing ordering targets → throw
+   * - unordered declared conflicts → throw
+   * Cycles always throw.
+   */
+  strict?: boolean;
 };
 
 /**
@@ -69,10 +76,20 @@ export class Schedule {
   private dirty = new Set<ScheduleLabel>();
   private nextIndex = 0;
   private timingsEnabled = false;
+  private strict = false;
   readonly timingStore = new TimingStore();
 
   enableTimings(enabled = true): void {
     this.timingsEnabled = enabled;
+  }
+
+  enableStrict(enabled = true): void {
+    this.strict = enabled;
+    // Force recompile with new strictness
+    for (const label of this.entries.keys()) {
+      this.dirty.add(label);
+      this.compiled.delete(label);
+    }
   }
 
   addSystem(
@@ -176,6 +193,7 @@ export class Schedule {
       label,
       entries,
       this.timingsEnabled ? this.timingStore : undefined,
+      { strict: this.strict },
     );
     this.compiled.set(label, compiled);
     this.dirty.delete(label);

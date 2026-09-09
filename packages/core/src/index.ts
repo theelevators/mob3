@@ -55,6 +55,7 @@ export {
   peekSystemMeta,
   isDeclaredSystem,
   accessesConflict,
+  normalizeAccess,
   type SystemDefinition,
   type AccessDeclaration,
   type SystemMeta,
@@ -65,6 +66,7 @@ export {
 
 export {
   formatExecutionPlan,
+  planToJson,
   type ExecutionPlan,
   type PlanSystem,
   type AccessConflict,

@@ -10,5 +10,6 @@ export {
 export {
   InputPlugin,
   SyntheticInputPlugin,
+  clearInputTransients,
   type InputPluginOptions,
 } from "./plugin.js";

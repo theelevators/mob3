@@ -13,9 +13,11 @@
     "typecheck": "tsc -b",
     "bench": "npm run bench -w @mob3/benchmarks",
     "bench:mixed": "npm run bench:mixed -w @mob3/benchmarks",
+    "bench:planner": "npm run bench:planner -w @mob3/benchmarks",
     "example:cubes": "npm run dev -w @mob3/example-cubes",
     "example:arena": "npm run dev -w @mob3/example-mob-arena",
     "example:arena:headless": "npm run headless -w @mob3/example-mob-arena",
+    "example:arena:inspect": "npm run inspect -w @mob3/example-mob-arena",
     "example:canvas": "npm run dev -w @mob3/example-debug-canvas"
   },
   "devDependencies": {

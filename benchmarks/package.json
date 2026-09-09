@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "bench": "tsx src/bench.ts",
-    "bench:mixed": "tsx src/mixed-bench.ts"
+    "bench:mixed": "tsx src/mixed-bench.ts",
+    "bench:planner": "tsx src/planner-bench.ts"
   },
   "dependencies": {
     "mob3": "0.1.0"

@@ -119,6 +119,7 @@ export function compileExecutionPlan(
   label: ScheduleLabel,
   entries: Entry[],
   timings?: TimingStore,
+  options?: { strict?: boolean },
 ): CompiledSchedule {
   const diagnostics: string[] = [];
   const byFn = new Map<SystemFn, Entry>();
@@ -254,6 +255,20 @@ export function compileExecutionPlan(
 
   // Deduplicate opaque diagnostics
   const uniqueDiagnostics = [...new Set(diagnostics)];
+
+  if (options?.strict) {
+    const fatal = uniqueDiagnostics.filter(
+      (d) =>
+        d.includes("references unregistered system") ||
+        d.includes("without explicit ordering"),
+    );
+    if (fatal.length) {
+      throw new Error(
+        `Schedule ${scheduleName(label)} strict validation failed:\n` +
+          fatal.map((d) => `  - ${d}`).join("\n"),
+      );
+    }
+  }
 
   // --- batches (conservative) ---
   const batches = buildBatches(order, entries, succ, conflicts);
@@ -405,35 +420,32 @@ function describeCycle(
   const remaining = new Set(
     entries.filter((e) => remainingNames.includes(e.meta.name)).map((e) => e.meta.id),
   );
-  // DFS to find a cycle among remaining
   const path: SystemId[] = [];
   const onPath = new Set<SystemId>();
-  let found: SystemId[] | null = null;
+  let cycle: SystemId[] | undefined;
 
-  const dfs = (id: SystemId) => {
-    if (found) return;
+  const dfs = (id: SystemId): boolean => {
     path.push(id);
     onPath.add(id);
     for (const n of succ.get(id) ?? []) {
-      if (!remaining.has(n) && !onPath.has(n)) continue;
       if (onPath.has(n)) {
         const idx = path.indexOf(n);
-        found = [...path.slice(idx), n];
-        return;
+        cycle = [...path.slice(idx), n];
+        return true;
       }
-      if (remaining.has(n)) dfs(n);
+      if (remaining.has(n) && dfs(n)) return true;
     }
     path.pop();
     onPath.delete(id);
+    return false;
   };
 
   for (const id of remaining) {
-    dfs(id);
-    if (found) break;
+    if (dfs(id)) break;
   }
 
-  if (found) {
-    return found.map((id) => nameOf.get(id) ?? "?").join(" → ");
+  if (cycle) {
+    return cycle.map((id) => nameOf.get(id) ?? "?").join(" → ");
   }
   return remainingNames.join(" → ") + " (cycle among systems)";
 }
@@ -502,12 +514,15 @@ function accessLabels(s: PlanSystem, mode: "read" | "write"): string[] {
   const labels: string[] = [];
   const comps = mode === "read" ? s.access.componentRead : s.access.componentWrite;
   for (const c of comps) {
-    labels.push((c as { name?: string }).name || String(c.id).slice(0, 24));
+    labels.push(componentLabel(c));
   }
   const res = mode === "read" ? s.access.resourceRead : s.access.resourceWrite;
   for (const r of res) {
-    if (typeof r === "symbol") labels.push(r.description ?? "Resource");
-    else if (typeof r === "function") labels.push(r.name || "Resource");
+    if (typeof r === "symbol") {
+      labels.push(
+        r.description?.replace(/^mob3\.resource\./, "") ?? "Resource",
+      );
+    } else if (typeof r === "function") labels.push(r.name || "Resource");
     else labels.push("Resource");
   }
   const ev = mode === "read" ? s.access.eventRead : s.access.eventWrite;
@@ -515,4 +530,57 @@ function accessLabels(s: PlanSystem, mode: "read" | "write"): string[] {
     labels.push(e.name ?? "Event");
   }
   return labels;
+}
+
+function componentLabel(c: { id?: symbol; name?: string; isTag?: boolean }): string {
+  const named = c.name;
+  if (named && named !== "factory" && named !== "") return named;
+  const desc = c.id?.description;
+  if (desc) return desc.replace(/^mob3\.component\./, "Component#");
+  return "Component";
+}
+
+/** JSON-serializable snapshot of an execution plan (symbols → strings). */
+export function planToJson(plan: ExecutionPlan): Record<string, unknown> {
+  const idStr = (id: SystemId) => String(id);
+  return {
+    schedule: plan.scheduleName,
+    systems: plan.systems.map((s) => ({
+      id: idStr(s.id),
+      name: s.name,
+      declared: s.declared,
+      reads: accessLabels(s, "read"),
+      writes: accessLabels(s, "write"),
+      commands: s.access.commands,
+      opaque: s.access.opaque,
+      timing: s.timing
+        ? {
+            invocations: s.timing.invocations,
+            avgMs: s.timing.avgMs,
+            lastMs: s.timing.lastMs,
+            totalMs: s.timing.totalMs,
+            minMs: Number.isFinite(s.timing.minMs) ? s.timing.minMs : 0,
+            maxMs: s.timing.maxMs,
+          }
+        : undefined,
+    })),
+    order: plan.order.map(idStr),
+    dependencies: plan.dependencies.map((d) => ({
+      from: d.fromName,
+      to: d.toName,
+      kind: d.kind,
+    })),
+    conflicts: plan.conflicts.map((c) => ({
+      a: c.aName,
+      b: c.bName,
+      reasons: c.reasons,
+      ordered: c.ordered,
+    })),
+    batches: plan.batches.map((batch) =>
+      batch.map(
+        (id) => plan.systems.find((s) => s.id === id)?.name ?? idStr(id),
+      ),
+    ),
+    diagnostics: plan.diagnostics,
+  };
 }
