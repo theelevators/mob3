@@ -117,9 +117,9 @@ function updateHud(world: World): void {
     : `HP ${Math.ceil(health)} · kills ${score.kills} · entities ${world.entityCount()} · WASD move · Space shoot · R restart`;
 }
 
-app.addSystem(Startup, setupVisuals);
-app.addSystem(FixedUpdate, attachMeshes, { before: despawnPending });
-app.addSystem(Update, updateHud);
+app.addSystem(Startup, setupVisuals); // opaque: immediate world.add + scene graph
+app.addSystem(FixedUpdate, attachMeshes, { before: despawnPending }); // opaque: world.add
+app.addSystem(Update, updateHud); // opaque: DOM side effect
 
 app.run();
 

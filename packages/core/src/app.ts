@@ -108,6 +108,25 @@ export class App {
     return this;
   }
 
+  /**
+   * Enable schedule diagnostics (timings / strict validation).
+   * Cheap to leave off for production.
+   */
+  enableDiagnostics(
+    options: { timings?: boolean; strict?: boolean } = {},
+  ): this {
+    this.schedule.enableTimings(options.timings ?? true);
+    if (options.strict !== undefined) {
+      this.schedule.enableStrict(options.strict);
+    }
+    return this;
+  }
+
+  /** Inspect the compiled execution plan for a schedule label. */
+  inspectSchedule(label: ScheduleLabel) {
+    return this.schedule.plan(label);
+  }
+
   update(deltaSeconds: number): void {
     this.assertNotDisposed();
     this.ensureStartup();

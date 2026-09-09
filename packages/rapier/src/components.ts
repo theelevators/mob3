@@ -11,12 +11,15 @@ export type RigidBodyData = {
   lz: number;
 };
 
-export const RigidBody = component<RigidBodyData>({
-  kind: "dynamic",
-  lx: 0,
-  ly: 0,
-  lz: 0,
-});
+export const RigidBody = component<RigidBodyData>(
+  {
+    kind: "dynamic",
+    lx: 0,
+    ly: 0,
+    lz: 0,
+  },
+  "RigidBody",
+);
 
 export type PhysicsColliderData = {
   shape: "ball" | "cuboid";
@@ -32,16 +35,19 @@ export type PhysicsColliderData = {
   filter: number;
 };
 
-export const PhysicsCollider = component<PhysicsColliderData>({
-  shape: "ball",
-  radius: 0.5,
-  hx: 0.5,
-  hy: 0.5,
-  hz: 0.5,
-  sensor: false,
-  membership: 0xffff,
-  filter: 0xffff,
-});
+export const PhysicsCollider = component<PhysicsColliderData>(
+  {
+    shape: "ball",
+    radius: 0.5,
+    hx: 0.5,
+    hy: 0.5,
+    hz: 0.5,
+    sensor: false,
+    membership: 0xffff,
+    filter: 0xffff,
+  },
+  "PhysicsCollider",
+);
 
 /** Internal: body already created in Rapier. */
 export const HasPhysicsBody = tag("HasPhysicsBody");

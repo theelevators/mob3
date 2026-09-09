@@ -13,16 +13,16 @@ import {
 
 export { Transform, PendingDespawn };
 
-export const Velocity = component({ x: 0, y: 0, z: 0 });
+export const Velocity = component({ x: 0, y: 0, z: 0 }, "Velocity");
 
 export const Player = tag("Player");
 export const Enemy = tag("Enemy");
 export const Projectile = tag("Projectile");
 export const Dead = tag("Dead");
 
-export const Health = component({ value: 100 });
-export const Damage = component({ value: 10 });
-export const Lifetime = component({ remaining: 1 });
+export const Health = component({ value: 100 }, "Health");
+export const Damage = component({ value: 10 }, "Damage");
+export const Lifetime = component({ remaining: 1 }, "Lifetime");
 
 export const Score = resource<{ kills: number; deaths: number }>("Score");
 export const SpawnConfig = resource<{

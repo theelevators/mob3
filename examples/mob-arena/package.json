@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "headless": "tsx src/headless.ts"
+    "headless": "tsx src/headless.ts",
+    "inspect": "tsx src/inspect-plan.ts"
   },
   "dependencies": {
     "mob3": "0.1.0",

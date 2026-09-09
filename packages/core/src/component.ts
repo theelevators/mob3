@@ -66,10 +66,16 @@ function createComponentType<T>(defaults: T, isTag: boolean): ComponentType<T> {
  *
  * @example
  * const Position = component({ x: 0, y: 0, z: 0 });
+ * const Health = component({ value: 100 }, "Health");
  * world.spawn(Position({ x: 1 }));
  */
-export function component<T extends object>(defaults: T): ComponentType<T> {
-  return createComponentType(defaults, false);
+export function component<T extends object>(
+  defaults: T,
+  name?: string,
+): ComponentType<T> {
+  const t = createComponentType(defaults, false);
+  if (name) Object.defineProperty(t, "name", { value: name });
+  return t;
 }
 
 /**

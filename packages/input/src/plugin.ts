@@ -1,8 +1,8 @@
 import {
   PostRender,
+  system,
   type App,
   type Plugin,
-  type World,
 } from "mob3";
 import { Input, createInputState, type KeyCode } from "./state.js";
 
@@ -76,6 +76,12 @@ export function SyntheticInputPlugin(): Plugin {
   };
 }
 
-function clearInputTransients(world: World): void {
-  world.resource(Input).clearTransients();
-}
+export const clearInputTransients = system({
+  name: "clearInputTransients",
+  access: {
+    resources: { write: [Input] },
+  },
+  run(world) {
+    world.resource(Input).clearTransients();
+  },
+});

@@ -6,6 +6,7 @@ import {
   Update,
   Transform,
   PendingDespawn,
+  system,
 } from "mob3";
 import * as THREE from "three";
 import {
@@ -21,28 +22,50 @@ type Owned = {
   resize?: () => void;
 };
 
-function syncTransforms(world: World): void {
-  for (const [, transform, three] of world.query(Transform, ThreeObject)) {
-    const obj = three.object;
-    obj.position.set(transform.x, transform.y, transform.z);
-    obj.rotation.set(transform.rx, transform.ry, transform.rz);
-    obj.scale.set(transform.sx, transform.sy, transform.sz);
-  }
-}
+export const syncTransforms = system({
+  name: "syncTransforms",
+  access: {
+    read: [Transform],
+    write: [ThreeObject],
+  },
+  run(world) {
+    for (const [, transform, three] of world.query(Transform, ThreeObject)) {
+      const obj = three.object;
+      obj.position.set(transform.x, transform.y, transform.z);
+      obj.rotation.set(transform.rx, transform.ry, transform.rz);
+      obj.scale.set(transform.sx, transform.sy, transform.sz);
+    }
+  },
+});
 
-function renderFrame(world: World): void {
-  const renderer = world.resource(ThreeRenderer);
-  const scene = world.resource(ThreeScene);
-  const camera = world.resource(ThreeCamera);
-  renderer.render(scene, camera);
-}
+export const renderFrame = system({
+  name: "renderFrame",
+  access: {
+    resources: {
+      read: [ThreeRenderer, ThreeScene, ThreeCamera],
+    },
+  },
+  run(world) {
+    const renderer = world.resource(ThreeRenderer);
+    const scene = world.resource(ThreeScene);
+    const camera = world.resource(ThreeCamera);
+    renderer.render(scene, camera);
+  },
+});
 
 /** Detach Object3D for entities pending despawn (public PendingDespawn tag). */
-export function detachPendingThreeObjects(world: World): void {
-  for (const [, three] of world.query(ThreeObject).with(PendingDespawn)) {
-    three.object.removeFromParent();
-  }
-}
+export const detachPendingThreeObjects = system({
+  name: "detachPendingThreeObjects",
+  access: {
+    read: [PendingDespawn],
+    write: [ThreeObject],
+  },
+  run(world) {
+    for (const [, three] of world.query(ThreeObject).with(PendingDespawn)) {
+      three.object.removeFromParent();
+    }
+  },
+});
 
 /**
  * Thin Three.js integration.
@@ -131,5 +154,3 @@ export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
     },
   };
 }
-
-export { syncTransforms, renderFrame };

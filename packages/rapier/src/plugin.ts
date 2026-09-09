@@ -2,10 +2,10 @@ import {
   Transform,
   FixedUpdate,
   PendingDespawn,
+  system,
   type App,
   type Plugin,
   type World,
-  type Commands,
   type Entity,
 } from "mob3";
 import { RAPIER, isRapierReady } from "./init.js";
@@ -84,105 +84,147 @@ export function RapierPlugin(options: RapierPluginOptions = {}): Plugin {
   };
 }
 
-export function ensurePhysicsBodies(world: World, commands: Commands): void {
-  const pw = requirePhysics(world);
-  for (const [entity, transform, rb, col] of world.query(
-    Transform,
-    RigidBody,
-    PhysicsCollider,
-  )) {
-    if (world.has(entity, HasPhysicsBody)) continue;
+export const ensurePhysicsBodies = system({
+  name: "ensurePhysicsBodies",
+  access: {
+    read: [Transform, RigidBody, PhysicsCollider, HasPhysicsBody],
+    resources: { write: [PhysicsWorld] },
+    commands: true,
+  },
+  run(world, commands) {
+    const pw = requirePhysics(world);
+    for (const [entity, transform, rb, col] of world.query(
+      Transform,
+      RigidBody,
+      PhysicsCollider,
+    )) {
+      if (world.has(entity, HasPhysicsBody)) continue;
 
-    const desc =
-      rb.kind === "fixed"
-        ? RAPIER.RigidBodyDesc.fixed()
-        : rb.kind === "kinematicPosition"
-          ? RAPIER.RigidBodyDesc.kinematicPositionBased()
-          : RAPIER.RigidBodyDesc.dynamic();
+      const desc =
+        rb.kind === "fixed"
+          ? RAPIER.RigidBodyDesc.fixed()
+          : rb.kind === "kinematicPosition"
+            ? RAPIER.RigidBodyDesc.kinematicPositionBased()
+            : RAPIER.RigidBodyDesc.dynamic();
 
-    desc.setTranslation(transform.x, transform.y, transform.z);
-    desc.setLinvel(rb.lx, rb.ly, rb.lz);
-    const body = pw.world.createRigidBody(desc);
+      desc.setTranslation(transform.x, transform.y, transform.z);
+      desc.setLinvel(rb.lx, rb.ly, rb.lz);
+      const body = pw.world.createRigidBody(desc);
 
-    const colliderDesc =
-      col.shape === "cuboid"
-        ? RAPIER.ColliderDesc.cuboid(col.hx, col.hy, col.hz)
-        : RAPIER.ColliderDesc.ball(col.radius);
+      const colliderDesc =
+        col.shape === "cuboid"
+          ? RAPIER.ColliderDesc.cuboid(col.hx, col.hy, col.hz)
+          : RAPIER.ColliderDesc.ball(col.radius);
 
-    colliderDesc.setSensor(col.sensor);
-    colliderDesc.setCollisionGroups(
-      ((col.membership & 0xffff) << 16) | (col.filter & 0xffff),
-    );
-    colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-    // Arena uses kinematic bodies; enable kinematic–kinematic contacts.
-    colliderDesc.setActiveCollisionTypes(
-      RAPIER.ActiveCollisionTypes.DEFAULT |
-        RAPIER.ActiveCollisionTypes.KINEMATIC_KINEMATIC |
-        RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED |
-        RAPIER.ActiveCollisionTypes.DYNAMIC_KINEMATIC,
-    );
+      colliderDesc.setSensor(col.sensor);
+      colliderDesc.setCollisionGroups(
+        ((col.membership & 0xffff) << 16) | (col.filter & 0xffff),
+      );
+      colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      // Arena uses kinematic bodies; enable kinematic–kinematic contacts.
+      colliderDesc.setActiveCollisionTypes(
+        RAPIER.ActiveCollisionTypes.DEFAULT |
+          RAPIER.ActiveCollisionTypes.KINEMATIC_KINEMATIC |
+          RAPIER.ActiveCollisionTypes.KINEMATIC_FIXED |
+          RAPIER.ActiveCollisionTypes.DYNAMIC_KINEMATIC,
+      );
 
-    const collider = pw.world.createCollider(colliderDesc, body);
-    pw.bodies.set(entity, body);
-    pw.colliderToEntity.set(collider.handle, entity);
-    commands.add(entity, HasPhysicsBody);
-  }
-}
+      const collider = pw.world.createCollider(colliderDesc, body);
+      pw.bodies.set(entity, body);
+      pw.colliderToEntity.set(collider.handle, entity);
+      commands.add(entity, HasPhysicsBody);
+    }
+  },
+});
 
-export function writeKinematicTransforms(world: World): void {
-  const pw = requirePhysics(world);
-  for (const [entity, transform, rb] of world.query(Transform, RigidBody)) {
-    if (rb.kind !== "kinematicPosition") continue;
-    const body = pw.bodies.get(entity);
-    if (!body) continue;
-    body.setNextKinematicTranslation({
-      x: transform.x,
-      y: transform.y,
-      z: transform.z,
+export const writeKinematicTransforms = system({
+  name: "writeKinematicTransforms",
+  access: {
+    read: [Transform, RigidBody],
+    resources: { write: [PhysicsWorld] },
+  },
+  run(world) {
+    const pw = requirePhysics(world);
+    for (const [entity, transform, rb] of world.query(Transform, RigidBody)) {
+      if (rb.kind !== "kinematicPosition") continue;
+      const body = pw.bodies.get(entity);
+      if (!body) continue;
+      body.setNextKinematicTranslation({
+        x: transform.x,
+        y: transform.y,
+        z: transform.z,
+      });
+    }
+  },
+});
+
+export const stepPhysics = system({
+  name: "stepPhysics",
+  access: {
+    resources: { write: [PhysicsWorld] },
+  },
+  run(world) {
+    const pw = requirePhysics(world);
+    pw.world.step(pw.eventQueue);
+  },
+});
+
+export const readDynamicTransforms = system({
+  name: "readDynamicTransforms",
+  access: {
+    write: [Transform, RigidBody],
+    resources: { read: [PhysicsWorld] },
+  },
+  run(world) {
+    const pw = requirePhysics(world);
+    for (const [entity, transform, rb] of world.query(Transform, RigidBody)) {
+      if (rb.kind !== "dynamic") continue;
+      const body = pw.bodies.get(entity);
+      if (!body) continue;
+      const t = body.translation();
+      transform.x = t.x;
+      transform.y = t.y;
+      transform.z = t.z;
+      const v = body.linvel();
+      rb.lx = v.x;
+      rb.ly = v.y;
+      rb.lz = v.z;
+    }
+  },
+});
+
+export const emitCollisionEvents = system({
+  name: "emitCollisionEvents",
+  access: {
+    resources: { write: [PhysicsWorld] },
+    events: { write: [CollisionStarted] },
+  },
+  run(world) {
+    const pw = requirePhysics(world);
+    pw.eventQueue.drainCollisionEvents((h1, h2, started) => {
+      if (!started) return;
+      const a = pw.colliderToEntity.get(h1);
+      const b = pw.colliderToEntity.get(h2);
+      if (a === undefined || b === undefined) return;
+      if (!world.isAlive(a) || !world.isAlive(b)) return;
+      world.send(CollisionStarted, { a, b });
     });
-  }
-}
+  },
+});
 
-export function stepPhysics(world: World): void {
-  const pw = requirePhysics(world);
-  pw.world.step(pw.eventQueue);
-}
-
-export function readDynamicTransforms(world: World): void {
-  const pw = requirePhysics(world);
-  for (const [entity, transform, rb] of world.query(Transform, RigidBody)) {
-    if (rb.kind !== "dynamic") continue;
-    const body = pw.bodies.get(entity);
-    if (!body) continue;
-    const t = body.translation();
-    transform.x = t.x;
-    transform.y = t.y;
-    transform.z = t.z;
-    const v = body.linvel();
-    rb.lx = v.x;
-    rb.ly = v.y;
-    rb.lz = v.z;
-  }
-}
-
-export function emitCollisionEvents(world: World): void {
-  const pw = requirePhysics(world);
-  pw.eventQueue.drainCollisionEvents((h1, h2, started) => {
-    if (!started) return;
-    const a = pw.colliderToEntity.get(h1);
-    const b = pw.colliderToEntity.get(h2);
-    if (a === undefined || b === undefined) return;
-    if (!world.isAlive(a) || !world.isAlive(b)) return;
-    world.send(CollisionStarted, { a, b });
-  });
-}
-
-export function cleanupPhysicsBodies(world: World): void {
-  const pw = requirePhysics(world);
-  for (const [entity] of world.query(HasPhysicsBody).with(PendingDespawn)) {
-    removeBody(pw, entity);
-  }
-}
+export const cleanupPhysicsBodies = system({
+  name: "cleanupPhysicsBodies",
+  access: {
+    read: [HasPhysicsBody, PendingDespawn],
+    resources: { write: [PhysicsWorld] },
+  },
+  run(world) {
+    const pw = requirePhysics(world);
+    for (const [entity] of world.query(HasPhysicsBody).with(PendingDespawn)) {
+      removeBody(pw, entity);
+    }
+  },
+});
 
 function requirePhysics(world: World): PhysicsWorldData {
   const pw = world.tryResource(PhysicsWorld);

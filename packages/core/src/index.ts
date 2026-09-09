@@ -46,7 +46,34 @@ export {
   DEFAULT_SCHEDULE_ORDER,
   type SystemFn,
   type ScheduleLabel,
+  type SystemConstraints,
 } from "./schedule.js";
+
+export {
+  system,
+  getSystemMeta,
+  peekSystemMeta,
+  isDeclaredSystem,
+  accessesConflict,
+  normalizeAccess,
+  type SystemDefinition,
+  type AccessDeclaration,
+  type SystemMeta,
+  type SystemId,
+  type DeclaredSystem,
+  type NormalizedAccess,
+} from "./system.js";
+
+export {
+  formatExecutionPlan,
+  planToJson,
+  type ExecutionPlan,
+  type PlanSystem,
+  type AccessConflict,
+  type DependencyEdge,
+  type SystemTiming,
+  type CompiledSchedule,
+} from "./execution_plan.js";
 
 export { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 
@@ -56,4 +83,3 @@ export { PendingDespawn } from "./pending_despawn.js";
 export { App, type AppRunner } from "./app.js";
 export type { Plugin, PluginFactory } from "./plugin.js";
 export { normalizePlugin } from "./plugin.js";
-export type { SystemConstraints } from "./schedule.js";
