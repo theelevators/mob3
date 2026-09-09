@@ -11,10 +11,12 @@
     "bench:storage": "tsx src/storage-bench.ts",
     "bench:abi": "tsx src/abi-bench.ts",
     "bench:wasm": "tsx src/wasm-bench.ts",
-    "bench:hierarchy": "tsx src/hierarchy-bench.ts"
+    "bench:hierarchy": "tsx src/hierarchy-bench.ts",
+    "bench:assets": "tsx src/assets-bench.ts"
   },
   "dependencies": {
-    "mob3": "0.1.0"
+    "mob3": "0.1.0",
+    "@mob3/assets": "0.1.0"
   },
   "devDependencies": {
     "tsx": "^4.19.3"

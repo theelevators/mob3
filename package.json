@@ -7,7 +7,7 @@
     "benchmarks"
   ],
   "scripts": {
-    "build": "npm run build -w mob3 && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier",
+    "build": "npm run build -w mob3 && npm run build -w @mob3/assets && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
@@ -19,6 +19,7 @@
     "bench:abi": "npm run bench:abi -w @mob3/benchmarks",
     "bench:wasm": "npm run bench:wasm -w @mob3/benchmarks",
     "bench:hierarchy": "npm run bench:hierarchy -w @mob3/benchmarks",
+    "bench:assets": "npm run bench:assets -w @mob3/benchmarks",
     "example:cubes": "npm run dev -w @mob3/example-cubes",
     "example:arena": "npm run dev -w @mob3/example-mob-arena",
     "example:arena:headless": "npm run headless -w @mob3/example-mob-arena",
@@ -26,7 +27,9 @@
     "example:canvas": "npm run dev -w @mob3/example-debug-canvas",
     "example:parallel": "npm run dev -w @mob3/example-parallel-sim",
     "example:hierarchy": "npm run dev -w @mob3/example-hierarchy-lab",
-    "example:hierarchy:headless": "npm run headless -w @mob3/example-hierarchy-lab"
+    "example:hierarchy:headless": "npm run headless -w @mob3/example-hierarchy-lab",
+    "example:hangar": "npm run dev -w @mob3/example-asset-hangar",
+    "example:hangar:headless": "npm run headless -w @mob3/example-asset-hangar"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

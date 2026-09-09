@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mob3 — Asset Hangar</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #10141c; color: #d5dde8;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif; overflow: hidden; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #panel { position: fixed; top: 0; right: 0; width: min(360px, 100%); height: 100%;
+        overflow: auto; background: rgba(10,14,20,0.92); border-left: 1px solid #243044;
+        padding: 1rem; box-sizing: border-box; font-size: 0.8rem; }
+      h1 { font-size: 1rem; margin: 0 0 0.5rem; }
+      button { display: block; width: 100%; margin: 0.25rem 0; padding: 0.4rem 0.5rem;
+        background: #1a2433; color: #d5dde8; border: 1px solid #33455c; cursor: pointer; text-align: left; }
+      button:hover { background: #243044; }
+      pre { white-space: pre-wrap; background: #121821; padding: 0.5rem; border: 1px solid #243044; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <aside id="panel">
+      <h1>Asset Hangar</h1>
+      <p>One ship asset → many instances. Shared GPU resources.</p>
+      <button type="button" data-act="load">Load ship asset</button>
+      <button type="button" data-act="spawn">Spawn instance</button>
+      <button type="button" data-act="despawn">Despawn one instance</button>
+      <button type="button" data-act="unload">Unload/release asset</button>
+      <button type="button" data-act="broken">Load broken asset</button>
+      <button type="button" data-act="retry">Retry broken</button>
+      <pre id="log">ready</pre>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
