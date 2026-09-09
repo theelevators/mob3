@@ -1,0 +1,21 @@
+{
+  "name": "@mob3/example-mob-arena",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "headless": "tsx src/headless.ts"
+  },
+  "dependencies": {
+    "mob3": "0.1.0",
+    "@mob3/three": "0.1.0",
+    "three": "^0.174.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

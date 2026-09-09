@@ -12,7 +12,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b",
     "bench": "npm run bench -w @mob3/benchmarks",
-    "example:cubes": "npm run dev -w @mob3/example-cubes"
+    "bench:mixed": "npm run bench:mixed -w @mob3/benchmarks",
+    "example:cubes": "npm run dev -w @mob3/example-cubes",
+    "example:arena": "npm run dev -w @mob3/example-mob-arena",
+    "example:arena:headless": "npm run headless -w @mob3/example-mob-arena"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

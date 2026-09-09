@@ -1,37 +1,12 @@
 import {
-  component,
   resource,
   COMPONENT_TYPE,
   IS_COMPONENT_TYPE,
+  Transform,
+  type TransformData,
   type ComponentType,
 } from "mob3";
 import type { Object3D, Scene, WebGLRenderer, Camera, PerspectiveCamera } from "three";
-
-/** Local ECS transform. Authority direction: ECS → Three. */
-export type TransformData = {
-  x: number;
-  y: number;
-  z: number;
-  /** Rotation Euler radians */
-  rx: number;
-  ry: number;
-  rz: number;
-  sx: number;
-  sy: number;
-  sz: number;
-};
-
-export const Transform = component<TransformData>({
-  x: 0,
-  y: 0,
-  z: 0,
-  rx: 0,
-  ry: 0,
-  rz: 0,
-  sx: 1,
-  sy: 1,
-  sz: 1,
-});
 
 export type ThreeObjectData = {
   object: Object3D;
@@ -43,7 +18,6 @@ export type ThreeObjectData = {
  *
  * @example
  * world.spawn(Transform(), ThreeObject(mesh));
- * world.spawn(Transform(), ThreeObject({ object: mesh }));
  */
 function createThreeObjectType(): ComponentType<ThreeObjectData> & {
   (object: Object3D): ThreeObjectData;
@@ -84,7 +58,6 @@ function createThreeObjectType(): ComponentType<ThreeObjectData> & {
 
 export const ThreeObject = createThreeObjectType();
 
-/** Helper alias. */
 export function threeObject(object: Object3D) {
   return ThreeObject(object);
 }
@@ -96,18 +69,13 @@ export const ThreeCamera = resource<Camera>("ThreeCamera");
 export type ThreePluginOptions = {
   canvas?: HTMLCanvasElement;
   antialias?: boolean;
-  /** Provide an existing renderer instead of creating one. */
   renderer?: WebGLRenderer;
-  /** Provide an existing scene. */
   scene?: Scene;
-  /** Provide an existing camera. */
   camera?: Camera;
-  /** Create a default PerspectiveCamera when none is supplied. Default true. */
   createDefaultCamera?: boolean;
-  /** Clear color (hex). Default 0x111111. */
   clearColor?: number;
-  /** Auto-resize renderer to canvas client size. Default true. */
   autoResize?: boolean;
 };
 
+export { Transform, type TransformData };
 export type { Object3D, Scene, WebGLRenderer, Camera, PerspectiveCamera };

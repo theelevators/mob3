@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "bench": "tsx src/bench.ts"
+    "bench": "tsx src/bench.ts",
+    "bench:mixed": "tsx src/mixed-bench.ts"
   },
   "dependencies": {
     "mob3": "0.1.0"

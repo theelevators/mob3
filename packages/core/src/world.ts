@@ -1,4 +1,11 @@
-import type { Entity } from "./entity.js";
+import {
+  type Entity,
+  INVALID_ENTITY,
+  ENTITY_INDEX_MASK,
+  packEntity,
+  entityIndex,
+  entityGeneration,
+} from "./entity.js";
 import {
   type ComponentBundleItem,
   type ComponentType,
@@ -17,18 +24,24 @@ import { EventStore, type EventType } from "./event.js";
  * Storage is intentionally opaque (sparse Maps today).
  */
 export class World {
-  private nextEntity: Entity = 1;
-  private readonly freeList: Entity[] = [];
+  /** Next unused index (not a packed entity). */
+  private nextIndex = 1;
+  /** Recycled indices. */
+  private readonly freeIndices: number[] = [];
+  /** generation[index] — current generation for that slot. */
+  private readonly generations: number[] = [];
+  /** Packed entities that are currently alive. */
   private readonly alive = new Set<Entity>();
+  /** Reserved by Commands.spawn but not yet realized. */
+  private readonly reserved = new Set<Entity>();
   private readonly stores = new Map<ComponentType, Map<Entity, unknown>>();
   private readonly entityComponents = new Map<Entity, Set<ComponentType>>();
   private readonly resources = new Map<symbol | ResourceKey, unknown>();
   private readonly eventStore = new EventStore();
 
-  /** Spawn an entity with zero or more components / tags. */
+  /** Spawn an entity with zero or more components / tags (immediate). */
   spawn(...bundle: ComponentBundleItem[]): Entity {
-    const entity =
-      this.freeList.length > 0 ? this.freeList.pop()! : this.nextEntity++;
+    const entity = this.allocateEntity();
     this.alive.add(entity);
     this.entityComponents.set(entity, new Set());
 
@@ -40,7 +53,40 @@ export class World {
     return entity;
   }
 
+  /**
+   * Reserve an entity id for deferred spawn. Not alive until realizeReserved.
+   * @internal
+   */
+  reserveEntity(): Entity {
+    const entity = this.allocateEntity();
+    this.reserved.add(entity);
+    return entity;
+  }
+
+  /**
+   * Realize a reserved entity with components. @internal
+   */
+  realizeReserved(entity: Entity, bundle: ComponentBundleItem[]): void {
+    if (!this.reserved.has(entity)) {
+      // Already cancelled or invalid — ignore.
+      return;
+    }
+    this.reserved.delete(entity);
+    this.alive.add(entity);
+    this.entityComponents.set(entity, new Set());
+    for (const item of bundle) {
+      const { type, value } = resolveBundleItem(item);
+      this.setComponent(entity, type, value);
+    }
+  }
+
   despawn(entity: Entity): void {
+    if (this.reserved.has(entity)) {
+      this.reserved.delete(entity);
+      this.recycleIndex(entity);
+      return;
+    }
+
     if (!this.alive.has(entity)) return;
 
     const types = this.entityComponents.get(entity);
@@ -51,21 +97,23 @@ export class World {
     }
     this.entityComponents.delete(entity);
     this.alive.delete(entity);
-    this.freeList.push(entity);
+    this.recycleIndex(entity);
   }
 
   isAlive(entity: Entity): boolean {
-    return this.alive.has(entity);
+    if (!this.alive.has(entity)) return false;
+    const index = entityIndex(entity);
+    return this.generations[index] === entityGeneration(entity);
   }
 
-  add<T>(entity: Entity, item: ComponentBundleItem): void {
+  add(entity: Entity, item: ComponentBundleItem): void {
     this.assertAlive(entity);
     const { type, value } = resolveBundleItem(item);
     this.setComponent(entity, type, value);
   }
 
   remove(entity: Entity, type: ComponentType): boolean {
-    if (!this.alive.has(entity)) return false;
+    if (!this.isAlive(entity)) return false;
     const store = this.stores.get(type);
     if (!store?.has(entity)) return false;
     store.delete(entity);
@@ -74,6 +122,7 @@ export class World {
   }
 
   has(entity: Entity, type: ComponentType): boolean {
+    if (!this.isAlive(entity)) return false;
     return this.stores.get(type)?.has(entity) ?? false;
   }
 
@@ -81,10 +130,10 @@ export class World {
     entity: Entity,
     type: C,
   ): InferComponent<C> | undefined {
+    if (!this.isAlive(entity)) return undefined;
     return this.stores.get(type)?.get(entity) as InferComponent<C> | undefined;
   }
 
-  /** Get a component or throw. */
   getOrThrow<C extends ComponentType>(
     entity: Entity,
     type: C,
@@ -138,29 +187,31 @@ export class World {
     return this.eventStore.read(type);
   }
 
-  /** Clear transient events (called at end of App.update). */
+  /** Clear transient events. */
   clearEvents(): void {
     this.eventStore.clear();
   }
 
-  /** Number of living entities. */
   entityCount(): number {
     return this.alive.size;
   }
 
-  /** Iterate living entities. */
   *entities(): IterableIterator<Entity> {
     yield* this.alive;
   }
 
-  /** Dev/DX: component types attached to an entity. */
   components(entity: Entity): ComponentType[] {
+    if (!this.isAlive(entity)) return [];
     return [...(this.entityComponents.get(entity) ?? [])];
   }
 
-  /** Dev/DX: inspect entity component values. */
   inspect(entity: Entity): Record<string, unknown> {
-    const out: Record<string, unknown> = { entity, alive: this.isAlive(entity) };
+    const out: Record<string, unknown> = {
+      entity,
+      index: entityIndex(entity),
+      generation: entityGeneration(entity),
+      alive: this.isAlive(entity),
+    };
     for (const type of this.components(entity)) {
       const key = type.isTag
         ? (type as { name?: string }).name ?? String(type.id)
@@ -179,11 +230,35 @@ export class World {
   *entitiesWith(type: ComponentType): IterableIterator<Entity> {
     const store = this.stores.get(type);
     if (!store) return;
-    yield* store.keys();
+    for (const entity of store.keys()) {
+      if (this.isAlive(entity)) yield entity;
+    }
+  }
+
+  private allocateEntity(): Entity {
+    let index: number;
+    if (this.freeIndices.length > 0) {
+      index = this.freeIndices.pop()!;
+    } else {
+      index = this.nextIndex++;
+      if (index > ENTITY_INDEX_MASK) {
+        throw new Error("Entity index space exhausted");
+      }
+      this.generations[index] = 0;
+    }
+    const generation = this.generations[index] ?? 0;
+    return packEntity(index, generation);
+  }
+
+  private recycleIndex(entity: Entity): void {
+    const index = entityIndex(entity);
+    const gen = this.generations[index] ?? 0;
+    this.generations[index] = (gen + 1) & 0xfff;
+    this.freeIndices.push(index);
   }
 
   private assertAlive(entity: Entity): void {
-    if (!this.alive.has(entity)) {
+    if (!this.isAlive(entity)) {
       throw new Error(`Entity ${entity} is not alive`);
     }
   }
@@ -202,3 +277,5 @@ export class World {
     this.entityComponents.get(entity)!.add(type);
   }
 }
+
+export { INVALID_ENTITY };
