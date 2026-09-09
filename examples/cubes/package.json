@@ -1,0 +1,20 @@
+{
+  "name": "@mob3/example-cubes",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "mob3": "0.1.0",
+    "@mob3/three": "0.1.0",
+    "three": "^0.174.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.2",
+    "typescript": "^5.8.2"
+  }
+}

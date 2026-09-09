@@ -1,0 +1,15 @@
+{
+  "name": "@mob3/benchmarks",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "bench": "tsx src/bench.ts"
+  },
+  "dependencies": {
+    "mob3": "0.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3"
+  }
+}

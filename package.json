@@ -1,0 +1,22 @@
+{
+  "name": "mob3-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "examples/*",
+    "benchmarks"
+  ],
+  "scripts": {
+    "build": "npm run build -w mob3 && npm run build -w @mob3/three",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b",
+    "bench": "npm run bench -w @mob3/benchmarks",
+    "example:cubes": "npm run dev -w @mob3/example-cubes"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9",
+    "@types/node": "^22.13.10"
+  }
+}
