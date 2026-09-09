@@ -1,0 +1,29 @@
+{
+  "name": "@mob3/rapier",
+  "version": "0.1.0",
+  "description": "Rapier physics integration for mob3",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.20.0"
+  },
+  "peerDependencies": {
+    "mob3": "0.1.0"
+  },
+  "devDependencies": {
+    "mob3": "0.1.0"
+  },
+  "license": "MIT"
+}

@@ -1,6 +1,12 @@
-import type { World } from "mob3";
-import { PreRender, Render, Transform } from "mob3";
-import type { App, Plugin } from "mob3";
+import type { World, App, Plugin } from "mob3";
+import {
+  PreRender,
+  Render,
+  FixedUpdate,
+  Update,
+  Transform,
+  PendingDespawn,
+} from "mob3";
 import * as THREE from "three";
 import {
   ThreeCamera,
@@ -9,6 +15,11 @@ import {
   ThreeScene,
   type ThreePluginOptions,
 } from "./components.js";
+
+type Owned = {
+  ownsRenderer: boolean;
+  resize?: () => void;
+};
 
 function syncTransforms(world: World): void {
   for (const [, transform, three] of world.query(Transform, ThreeObject)) {
@@ -26,11 +37,24 @@ function renderFrame(world: World): void {
   renderer.render(scene, camera);
 }
 
+/** Detach Object3D for entities pending despawn (public PendingDespawn tag). */
+export function detachPendingThreeObjects(world: World): void {
+  for (const [, three] of world.query(ThreeObject).with(PendingDespawn)) {
+    three.object.removeFromParent();
+  }
+}
+
 /**
- * Thin Three.js integration. Creates renderer/scene/camera resources
- * and registers transform sync + render systems.
+ * Thin Three.js integration.
+ *
+ * Ownership: objects created by the plugin are disposed on `app.dispose()`.
+ * Caller-supplied renderer/scene/camera are left alone.
  */
 export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
+  const owned: Owned = {
+    ownsRenderer: !options.renderer,
+  };
+
   return {
     build(app: App) {
       const {
@@ -83,14 +107,27 @@ export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
         };
         resize();
         window.addEventListener("resize", resize);
+        owned.resize = resize;
       }
 
       app.insertResource(ThreeRenderer, renderer);
       app.insertResource(ThreeScene, scene);
       app.insertResource(ThreeCamera, camera);
 
+      app.addSystem(FixedUpdate, detachPendingThreeObjects);
+      app.addSystem(Update, detachPendingThreeObjects);
       app.addSystem(PreRender, syncTransforms);
       app.addSystem(Render, renderFrame);
+    },
+    dispose(app: App) {
+      if (owned.resize && typeof window !== "undefined") {
+        window.removeEventListener("resize", owned.resize);
+        owned.resize = undefined;
+      }
+      const renderer = app.world.tryResource(ThreeRenderer);
+      if (renderer && owned.ownsRenderer) {
+        renderer.dispose();
+      }
     },
   };
 }
