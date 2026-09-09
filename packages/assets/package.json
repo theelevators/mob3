@@ -1,7 +1,7 @@
 {
-  "name": "@mob3/three",
+  "name": "@mob3/assets",
   "version": "0.1.0",
-  "description": "Three.js integration plugin for mob3",
+  "description": "Typed assets and async lifecycle for mob3 (renderer-agnostic)",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -12,28 +12,17 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "src"
-  ],
+  "files": ["dist", "src"],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "mob3": "0.1.0",
-    "@mob3/assets": "0.1.0",
-    "three": "^0.174.0"
+    "mob3": "0.1.0"
   },
   "devDependencies": {
-    "@types/three": "^0.174.0",
-    "mob3": "0.1.0",
-    "@mob3/assets": "0.1.0",
-    "three": "^0.174.0"
-  },
-  "dependencies": {
-    "@mob3/assets": "0.1.0"
+    "mob3": "0.1.0"
   },
   "license": "MIT"
 }
