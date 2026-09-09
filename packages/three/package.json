@@ -1,0 +1,34 @@
+{
+  "name": "@mob3/three",
+  "version": "0.1.0",
+  "description": "Three.js integration plugin for mob3",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "mob3": "0.1.0",
+    "three": "^0.174.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.174.0",
+    "mob3": "0.1.0",
+    "three": "^0.174.0"
+  },
+  "license": "MIT"
+}

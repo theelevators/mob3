@@ -1,0 +1,15 @@
+{
+  "name": "@mob3/example-basic",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "mob3": "0.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3"
+  }
+}

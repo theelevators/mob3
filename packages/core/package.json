@@ -1,0 +1,32 @@
+{
+  "name": "mob3",
+  "version": "0.1.0",
+  "description": "ECS application architecture for Three.js — without replacing Three.js",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ecs",
+    "entity-component-system",
+    "three.js",
+    "game",
+    "typescript"
+  ],
+  "license": "MIT"
+}

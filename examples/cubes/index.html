@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mob3 — 1000 cubes</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d10;
+        overflow: hidden;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .hud {
+        position: fixed;
+        left: 1rem;
+        bottom: 1rem;
+        color: #c8d0d8;
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+        opacity: 0.85;
+        pointer-events: none;
+      }
+      .hud strong {
+        color: #e8eef4;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div class="hud"><strong>mob3</strong> · 1,000 ECS cubes · Three.js render</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
