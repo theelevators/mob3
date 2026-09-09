@@ -29,7 +29,7 @@ export interface WorkerPool {
   runJob(
     moduleUrl: string,
     exportName: string,
-    payload: WorkerPayload,
+    payload: WorkerPayload | Record<string, unknown>,
     systemName: string,
   ): Promise<WorkerResult>;
   dispose(): void;

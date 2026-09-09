@@ -99,6 +99,7 @@ export {
   ParallelExecutor,
   type ParallelExecutorOptions,
   type ParallelTimings,
+  type ParallelDataPath,
 } from "./parallel/executor.js";
 
 export {
@@ -120,3 +121,27 @@ export {
   isWorkerSafeComponent,
   getNumericLayout,
 } from "./parallel/transfer.js";
+
+export {
+  packedComponent,
+  getPackedMeta,
+  isPackedComponent,
+  f32,
+  f64,
+  i32,
+  u32,
+  PACKED_META,
+  ObjectStorage,
+  PackedStorage,
+  SharedPackedStorage,
+  sharedArrayBufferAvailable,
+  type PackedComponentOptions,
+  type PackedComponentType,
+  type FieldKind,
+  type FieldSchema,
+  type InferSchema,
+  type StorageKind,
+  type ComponentStorage,
+  type SharedStoreDescriptor,
+} from "./storage/index.js";
+

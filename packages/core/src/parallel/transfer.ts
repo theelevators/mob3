@@ -26,9 +26,12 @@ function isNumericDefaults(defaults: unknown): defaults is Record<string, number
   return vals.length > 0 && vals.every((v) => typeof v === "number");
 }
 
+import { getPackedMeta } from "../storage/packed_component.js";
+
 /** True if component defaults are a plain numeric record (worker-transferable). */
 export function isWorkerSafeComponent(type: ComponentType): boolean {
-  if (type.isTag) return true; // tags used as filters only
+  if (type.isTag) return true;
+  if (getPackedMeta(type)) return true;
   return isNumericDefaults(type.defaults);
 }
 
@@ -36,6 +39,16 @@ export function getNumericLayout(type: ComponentType): NumericLayout | null {
   if (type.isTag) return null;
   const cached = layouts.get(type);
   if (cached) return cached;
+  const packed = getPackedMeta(type);
+  if (packed) {
+    const layout = {
+      type,
+      name: packed.name,
+      fields: [...packed.fields],
+    };
+    layouts.set(type, layout);
+    return layout;
+  }
   if (!isNumericDefaults(type.defaults)) return null;
   const fields = Object.keys(type.defaults as Record<string, number>);
   const name =

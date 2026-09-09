@@ -18,28 +18,28 @@ import {
   resourceKeyId,
 } from "./resource.js";
 import { EventStore, type EventType } from "./event.js";
+import {
+  createStorageFor,
+  type ComponentStorage,
+  getPackedMeta,
+  type SharedPackedStorage,
+} from "./storage/index.js";
 
 /**
  * World owns entities, component storage, resources, and events.
- * Storage is intentionally opaque (sparse Maps today).
+ * Physical storage is per-component (object / packed / shared packed).
  */
 export class World {
-  /** Next unused index (not a packed entity). */
   private nextIndex = 1;
-  /** Recycled indices. */
   private readonly freeIndices: number[] = [];
-  /** generation[index] — current generation for that slot. */
   private readonly generations: number[] = [];
-  /** Packed entities that are currently alive. */
   private readonly alive = new Set<Entity>();
-  /** Reserved by Commands.spawn but not yet realized. */
   private readonly reserved = new Set<Entity>();
-  private readonly stores = new Map<ComponentType, Map<Entity, unknown>>();
+  private readonly stores = new Map<ComponentType, ComponentStorage>();
   private readonly entityComponents = new Map<Entity, Set<ComponentType>>();
   private readonly resources = new Map<symbol | ResourceKey, unknown>();
   private readonly eventStore = new EventStore();
 
-  /** Spawn an entity with zero or more components / tags (immediate). */
   spawn(...bundle: ComponentBundleItem[]): Entity {
     const entity = this.allocateEntity();
     this.alive.add(entity);
@@ -53,24 +53,16 @@ export class World {
     return entity;
   }
 
-  /**
-   * Reserve an entity id for deferred spawn. Not alive until realizeReserved.
-   * @internal
-   */
+  /** @internal */
   reserveEntity(): Entity {
     const entity = this.allocateEntity();
     this.reserved.add(entity);
     return entity;
   }
 
-  /**
-   * Realize a reserved entity with components. @internal
-   */
+  /** @internal */
   realizeReserved(entity: Entity, bundle: ComponentBundleItem[]): void {
-    if (!this.reserved.has(entity)) {
-      // Already cancelled or invalid — ignore.
-      return;
-    }
+    if (!this.reserved.has(entity)) return;
     this.reserved.delete(entity);
     this.alive.add(entity);
     this.entityComponents.set(entity, new Set());
@@ -92,7 +84,7 @@ export class World {
     const types = this.entityComponents.get(entity);
     if (types) {
       for (const type of types) {
-        this.stores.get(type)?.delete(entity);
+        this.stores.get(type)?.remove(entity);
       }
     }
     this.entityComponents.delete(entity);
@@ -116,7 +108,7 @@ export class World {
     if (!this.isAlive(entity)) return false;
     const store = this.stores.get(type);
     if (!store?.has(entity)) return false;
-    store.delete(entity);
+    store.remove(entity);
     this.entityComponents.get(entity)?.delete(type);
     return true;
   }
@@ -187,7 +179,6 @@ export class World {
     return this.eventStore.read(type);
   }
 
-  /** Clear transient events. */
   clearEvents(): void {
     this.eventStore.clear();
   }
@@ -215,8 +206,23 @@ export class World {
     for (const type of this.components(entity)) {
       const key = type.isTag
         ? (type as { name?: string }).name ?? String(type.id)
-        : String(type.id);
-      out[key] = this.get(entity, type);
+        : (type as { name?: string }).name ?? String(type.id);
+      const val = this.get(entity, type);
+      // Snapshot packed views into plain objects for inspect
+      if (val && typeof val === "object" && "_slot" in (val as object)) {
+        const snap: Record<string, number> = {};
+        const meta = getPackedMeta(type);
+        if (meta) {
+          for (const f of meta.fields) {
+            snap[f] = (val as Record<string, number>)[f]!;
+          }
+          out[key] = snap;
+        } else {
+          out[key] = val;
+        }
+      } else {
+        out[key] = val;
+      }
     }
     return out;
   }
@@ -230,9 +236,24 @@ export class World {
   *entitiesWith(type: ComponentType): IterableIterator<Entity> {
     const store = this.stores.get(type);
     if (!store) return;
-    for (const entity of store.keys()) {
+    for (const entity of store.entities()) {
       if (this.isAlive(entity)) yield entity;
     }
+  }
+
+  /** @internal — storage handle for packed/shared worker paths */
+  componentStorage(type: ComponentType): ComponentStorage | undefined {
+    return this.stores.get(type);
+  }
+
+  /** Ensure storage exists (e.g. before shared worker descriptor). */
+  ensureStorage(type: ComponentType): ComponentStorage {
+    let store = this.stores.get(type);
+    if (!store) {
+      store = createStorageFor(type);
+      this.stores.set(type, store);
+    }
+    return store;
   }
 
   private allocateEntity(): Entity {
@@ -270,7 +291,7 @@ export class World {
   ): void {
     let store = this.stores.get(type);
     if (!store) {
-      store = new Map();
+      store = createStorageFor(type);
       this.stores.set(type, store);
     }
     store.set(entity, value);
@@ -279,3 +300,4 @@ export class World {
 }
 
 export { INVALID_ENTITY };
+export type { SharedPackedStorage };

@@ -15,6 +15,7 @@
     "bench:mixed": "npm run bench:mixed -w @mob3/benchmarks",
     "bench:planner": "npm run bench:planner -w @mob3/benchmarks",
     "bench:parallel": "npm run bench:parallel -w @mob3/benchmarks",
+    "bench:storage": "npm run bench:storage -w @mob3/benchmarks",
     "example:cubes": "npm run dev -w @mob3/example-cubes",
     "example:arena": "npm run dev -w @mob3/example-mob-arena",
     "example:arena:headless": "npm run headless -w @mob3/example-mob-arena",

@@ -18,7 +18,12 @@ import {
   type WorkerPoolOptions,
   type PoolMode,
 } from "./pool.js";
-import type { WorkerResult } from "./types.js";
+import type { WorkerPayload, WorkerResult } from "./types.js";
+import {
+  canUseSharedPath,
+  extractSharedWorkerPayload,
+  type SharedWorkerPayload,
+} from "./shared_path.js";
 
 export type ParallelTimings = {
   dispatchMs: number;
@@ -26,10 +31,19 @@ export type ParallelTimings = {
   transferMs: number;
   commitMs: number;
   barrierMs: number;
+  path?: "copy" | "shared" | "main";
 };
+
+export type ParallelDataPath = "copy" | "shared" | "auto";
 
 export type ParallelExecutorOptions = WorkerPoolOptions & {
   mode?: PoolMode;
+  /**
+   * copy — always Phase 5 extract/commit
+   * shared — require shared stores (error if unavailable)
+   * auto — shared when all accesses are SharedPackedStorage (default)
+   */
+  dataPath?: ParallelDataPath;
 };
 
 function nowMs(): number {
@@ -53,18 +67,18 @@ function resolveDelay(meta: WorkerSystemMeta): number | undefined {
 
 /**
  * Executes a compiled plan using Phase 4 batches.
- * Worker-eligible systems may run concurrently; main systems in the same
- * batch run on the main thread concurrently with dispatches (Promise.all).
- * Writes commit at the barrier in plan order.
+ * Chooses copy vs shared SAB path per worker system.
  */
 export class ParallelExecutor {
   readonly pool: WorkerPool;
   readonly mode: PoolMode;
+  readonly dataPath: ParallelDataPath;
   private readonly batchTimings: ParallelTimings[] = [];
   private active = false;
 
   constructor(options: ParallelExecutorOptions = {}) {
     this.mode = options.mode ?? "preferred";
+    this.dataPath = options.dataPath ?? "auto";
     this.pool = createWorkerPool(options);
   }
 
@@ -76,9 +90,6 @@ export class ParallelExecutor {
     this.pool.dispose();
   }
 
-  /**
-   * Async schedule run. Sequential semantics via barriers.
-   */
   async run(
     compiled: CompiledSchedule,
     world: World,
@@ -122,65 +133,112 @@ export class ParallelExecutor {
           };
         });
 
-        // Prepare worker payloads (snapshot) before any execution
         type Prepared = {
           job: Job;
+          path: "copy" | "shared" | "main";
           payloadCtx?: ReturnType<typeof extractWorkerPayloadWithKeys>;
+          sharedPayload?: SharedWorkerPayload;
           result?: WorkerResult;
           error?: Error;
           dispatchMs: number;
           transferMs: number;
         };
+
         const prepared: Prepared[] = jobs.map((job) => {
-          if (job.kind === "worker" && job.meta) {
-            const t0 = nowMs();
-            const payloadCtx = extractWorkerPayloadWithKeys(
+          if (job.kind !== "worker" || !job.meta) {
+            return { job, path: "main", dispatchMs: 0, transferMs: 0 };
+          }
+          const t0 = nowMs();
+          const wantShared =
+            this.dataPath === "shared" ||
+            (this.dataPath === "auto" && canUseSharedPath(world, job.meta));
+          if (this.dataPath === "shared" && !canUseSharedPath(world, job.meta)) {
+            throw new Error(
+              `dataPath=shared but system '${job.meta.name}' lacks SharedPackedStorage accesses`,
+            );
+          }
+          if (wantShared && canUseSharedPath(world, job.meta)) {
+            const sharedPayload = extractSharedWorkerPayload(
               world,
-              job.meta.access,
-              job.meta.resourceKeys,
-              job.meta.eventTypes,
+              job.meta,
               resolveDelay(job.meta),
             );
             return {
               job,
-              payloadCtx,
+              path: "shared",
+              sharedPayload,
               dispatchMs: 0,
               transferMs: nowMs() - t0,
             };
           }
-          return { job, dispatchMs: 0, transferMs: 0 };
+          const payloadCtx = extractWorkerPayloadWithKeys(
+            world,
+            job.meta.access,
+            job.meta.resourceKeys,
+            job.meta.eventTypes,
+            resolveDelay(job.meta),
+          );
+          return {
+            job,
+            path: "copy",
+            payloadCtx,
+            dispatchMs: 0,
+            transferMs: nowMs() - t0,
+          };
         });
 
-        // Execute all jobs concurrently
         await Promise.all(
           prepared.map(async (p) => {
             const tDispatch = nowMs();
             try {
-              if (p.job.kind === "worker" && p.job.meta && p.payloadCtx) {
+              if (p.job.kind === "worker" && p.job.meta) {
+                const payload: WorkerPayload | SharedWorkerPayload =
+                  p.path === "shared"
+                    ? p.sharedPayload!
+                    : p.payloadCtx!.payload;
+
                 if (this.pool.available) {
                   p.result = await this.pool.runJob(
                     p.job.meta.moduleUrl,
                     p.job.meta.exportName,
-                    p.payloadCtx.payload,
+                    payload as WorkerPayload,
                     p.job.meta.name,
                   );
                 } else if (this.mode === "required") {
                   throw new Error(
                     `Workers unavailable (required) for '${p.job.meta.name}'`,
                   );
-                } else {
-                  // preferred fallback: same handler as sequential, on main
+                } else if (p.path === "shared") {
+                  // Fallback: run handler on main with reconstructed shared views
+                  // Prefer sequential SystemFn path for correctness
                   const t0 = nowMs();
-                  const result = p.job.meta.handler(p.payloadCtx.payload);
-                  p.result = { ...result, execMs: result.execMs ?? nowMs() - t0 };
+                  p.job.fn(world, commands);
+                  commands.flush();
+                  p.result = { writes: [], execMs: nowMs() - t0 };
+                } else {
+                  const t0 = nowMs();
+                  const result = p.job.meta.handler(p.payloadCtx!.payload);
+                  p.result = {
+                    ...result,
+                    execMs: result.execMs ?? nowMs() - t0,
+                  };
                 }
-                validateWorkerResult(
-                  p.result,
-                  writeNamesFor(p.job.meta),
-                  p.job.meta.name,
-                );
+
+                if (p.path === "copy") {
+                  validateWorkerResult(
+                    p.result,
+                    writeNamesFor(p.job.meta),
+                    p.job.meta.name,
+                  );
+                } else if (p.result.writes?.length) {
+                  // Shared path should not return undeclared component copies
+                  validateWorkerResult(
+                    p.result,
+                    writeNamesFor(p.job.meta),
+                    p.job.meta.name,
+                  );
+                }
               } else {
-                // main-thread system
                 const t0 = nowMs();
                 p.job.fn(world, commands);
                 commands.flush();
@@ -196,20 +254,36 @@ export class ParallelExecutor {
           }),
         );
 
-        // Fail before commit if any error
         const failed = prepared.find((p) => p.error);
-        if (failed) {
-          throw failed.error;
-        }
+        if (failed) throw failed.error;
 
-        // Commit worker writes in plan order (batch subset order = plan order)
         const tCommit = nowMs();
         for (const p of prepared) {
-          if (p.job.kind !== "worker" || !p.result || !p.payloadCtx || !p.job.meta) {
-            continue;
+          if (p.job.kind !== "worker" || !p.result || !p.job.meta) continue;
+          if (p.path === "copy" && p.payloadCtx) {
+            commitWorkerWrites(world, p.result.writes, p.payloadCtx.ctx);
+            commitWorkerEvents(world, p.result.events, p.payloadCtx.ctx);
+          } else if (p.path === "shared") {
+            // Field data already in SAB; events still need merge if any
+            if (p.result.events?.length && p.payloadCtx) {
+              commitWorkerEvents(world, p.result.events, p.payloadCtx.ctx);
+            } else if (p.result.events?.length) {
+              // Build minimal event commit via world.send using meta.eventTypes
+              for (const batch of p.result.events) {
+                const et = p.job.meta.eventTypes.find(
+                  (e) => (e.name ?? "Event") === batch.name,
+                );
+                if (!et) {
+                  throw new Error(
+                    `Worker returned unknown event '${batch.name}'`,
+                  );
+                }
+                for (const payload of batch.payloads) {
+                  world.send(et, payload as never);
+                }
+              }
+            }
           }
-          commitWorkerWrites(world, p.result.writes, p.payloadCtx.ctx);
-          commitWorkerEvents(world, p.result.events, p.payloadCtx.ctx);
           if (timings) {
             timings.record(
               p.job.meta.id,
@@ -221,14 +295,16 @@ export class ParallelExecutor {
         const barrierMs = nowMs() - barrierStart;
 
         this.batchTimings.push({
-          dispatchMs: Math.max(...prepared.map((p) => p.dispatchMs), 0),
-          execMs: Math.max(
-            ...prepared.map((p) => p.result?.execMs ?? 0),
-            0,
-          ),
-          transferMs: prepared.reduce((a, p) => a + p.transferMs, 0),
+          dispatchMs: Math.max(...prepared.map((x) => x.dispatchMs), 0),
+          execMs: Math.max(...prepared.map((x) => x.result?.execMs ?? 0), 0),
+          transferMs: prepared.reduce((a, x) => a + x.transferMs, 0),
           commitMs,
           barrierMs,
+          path: prepared.some((x) => x.path === "shared")
+            ? "shared"
+            : prepared.some((x) => x.path === "copy")
+              ? "copy"
+              : "main",
         });
       }
     } finally {
@@ -250,7 +326,6 @@ export type ScheduleRunner = {
   runAsync?(label: ScheduleLabel, world: World): Promise<void>;
 };
 
-/** Factory for App configuration. */
 export function parallelExecutor(
   options: ParallelExecutorOptions = {},
 ): ParallelExecutor {
