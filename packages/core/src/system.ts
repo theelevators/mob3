@@ -40,6 +40,8 @@ export type SystemMeta = {
   name: string;
   access: NormalizedAccess;
   declared: boolean;
+  /** Phase 5 execution affinity. Default main. */
+  affinity?: "main" | "worker";
 };
 
 const META = Symbol.for("mob3.systemMeta");

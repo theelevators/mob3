@@ -39,6 +39,8 @@ export type PlanSystem = {
   name: string;
   declared: boolean;
   access: SystemMeta["access"];
+  /** Phase 5: main vs worker-eligible. */
+  affinity: "main" | "worker";
   timing?: SystemTiming;
 };
 
@@ -281,6 +283,7 @@ export function compileExecutionPlan(
       name: e.meta.name,
       declared: e.meta.declared,
       access: e.meta.access,
+      affinity: e.meta.affinity ?? "main",
       ...(timing
         ? {
             timing: {
@@ -463,7 +466,9 @@ export function formatExecutionPlan(plan: ExecutionPlan): string {
 
   for (const s of plan.systems) {
     const bi = batchOf.get(s.id) ?? 0;
-    lines.push(`[${bi}] ${s.name}${s.declared ? "" : " (opaque)"}`);
+    lines.push(
+      `[${bi}] ${s.name}${s.declared ? "" : " (opaque)"}  executor: ${s.affinity}`,
+    );
     const readLabels = accessLabels(s, "read");
     const writeLabels = accessLabels(s, "write");
     if (readLabels.length) lines.push(`    reads:  ${readLabels.join(", ")}`);
@@ -549,6 +554,7 @@ export function planToJson(plan: ExecutionPlan): Record<string, unknown> {
       id: idStr(s.id),
       name: s.name,
       declared: s.declared,
+      affinity: s.affinity,
       reads: accessLabels(s, "read"),
       writes: accessLabels(s, "write"),
       commands: s.access.commands,

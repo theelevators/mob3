@@ -16,16 +16,43 @@ import {
 import { normalizePlugin, type Plugin, type PluginFactory } from "./plugin.js";
 import { Time, createTime, MAX_DELTA, type TimeData } from "./time.js";
 import type { ResourceKey } from "./resource.js";
+import {
+  parallelExecutor,
+  type ParallelExecutor,
+  type ParallelExecutorOptions,
+} from "./parallel/executor.js";
 
-export type AppRunner = (app: App) => void;
+export type AppRunner = (app: App) => void | Promise<void>;
+
+export type AppOptions = {
+  /**
+   * Enable Phase 5 parallel batch execution.
+   * Use `updateAsync` / async runner when set.
+   */
+  parallel?: boolean | ParallelExecutorOptions;
+};
 
 function browserRunner(app: App): void {
   let last = performance.now();
-  const frame = (now: number) => {
+  let busy = false;
+  const frame = async (now: number) => {
     if (app.isDisposed) return;
+    if (busy) {
+      app._rafId = requestAnimationFrame(frame);
+      return;
+    }
     const dt = (now - last) / 1000;
     last = now;
-    app.update(dt);
+    busy = true;
+    try {
+      if (app.hasParallelExecutor) {
+        await app.updateAsync(dt);
+      } else {
+        app.update(dt);
+      }
+    } finally {
+      busy = false;
+    }
     if (!app.isDisposed) {
       app._rafId = requestAnimationFrame(frame);
     }
@@ -45,15 +72,38 @@ export class App {
   private disposed = false;
   private plugins: Plugin[] = [];
   private disposeHooks: Array<(app: App) => void> = [];
+  private parallel: ParallelExecutor | null = null;
+  private frameLock = false;
   /** @internal */
   _rafId: number | null = null;
 
-  constructor() {
+  constructor(options: AppOptions = {}) {
     this.world.insertResource(Time, createTime());
+    if (options.parallel) {
+      const opts =
+        options.parallel === true ? {} : (options.parallel as ParallelExecutorOptions);
+      this.setParallelExecutor(parallelExecutor(opts));
+    }
   }
 
   get isDisposed(): boolean {
     return this.disposed;
+  }
+
+  get hasParallelExecutor(): boolean {
+    return this.parallel !== null;
+  }
+
+  get parallelExecutor(): ParallelExecutor | null {
+    return this.parallel;
+  }
+
+  setParallelExecutor(executor: ParallelExecutor | null): this {
+    this.assertNotDisposed();
+    this.parallel?.dispose();
+    this.parallel = executor;
+    this.schedule.setParallelExecutor(executor);
+    return this;
   }
 
   addPlugin(plugin: PluginFactory): this {
@@ -74,7 +124,6 @@ export class App {
     return this;
   }
 
-  /** Add before/after constraints for an existing system in a schedule. */
   order(
     label: ScheduleLabel,
     system: SystemFn,
@@ -102,16 +151,11 @@ export class App {
     return this;
   }
 
-  /** Register cleanup invoked once from `dispose()`. */
   onDispose(fn: (app: App) => void): this {
     this.disposeHooks.push(fn);
     return this;
   }
 
-  /**
-   * Enable schedule diagnostics (timings / strict validation).
-   * Cheap to leave off for production.
-   */
   enableDiagnostics(
     options: { timings?: boolean; strict?: boolean } = {},
   ): this {
@@ -122,14 +166,14 @@ export class App {
     return this;
   }
 
-  /** Inspect the compiled execution plan for a schedule label. */
   inspectSchedule(label: ScheduleLabel) {
     return this.schedule.plan(label);
   }
 
+  /** Synchronous frame — always uses the sequential executor. */
   update(deltaSeconds: number): void {
     this.assertNotDisposed();
-    this.ensureStartup();
+    this.ensureStartupSync();
 
     const time = this.world.resource(Time);
     this.advanceTime(time, deltaSeconds);
@@ -161,14 +205,58 @@ export class App {
     this.world.clearEvents();
   }
 
+  /**
+   * Async frame. When a parallel executor is configured, worker batches run
+   * concurrently; otherwise identical to `update`.
+   */
+  async updateAsync(deltaSeconds: number): Promise<void> {
+    this.assertNotDisposed();
+    if (this.frameLock) {
+      throw new Error("App.updateAsync: overlapping frames are not allowed");
+    }
+    this.frameLock = true;
+    try {
+      await this.ensureStartupAsync();
+
+      const time = this.world.resource(Time);
+      this.advanceTime(time, deltaSeconds);
+
+      await this.schedule.runAsync(PreUpdate, this.world);
+
+      time.fixedAccumulator += time.delta;
+      const frameDelta = time.delta;
+      let steps = 0;
+      const maxSteps = 5;
+      while (time.fixedAccumulator >= time.fixedDelta && steps < maxSteps) {
+        this.world.clearEvents();
+        time.delta = time.fixedDelta;
+        await this.schedule.runAsync(FixedUpdate, this.world);
+        time.fixedAccumulator -= time.fixedDelta;
+        steps++;
+      }
+      if (steps === maxSteps) {
+        time.fixedAccumulator = 0;
+      }
+      time.delta = frameDelta;
+
+      await this.schedule.runAsync(Update, this.world);
+      await this.schedule.runAsync(PostUpdate, this.world);
+      await this.schedule.runAsync(PreRender, this.world);
+      await this.schedule.runAsync(Render, this.world);
+      await this.schedule.runAsync(PostRender, this.world);
+
+      this.world.clearEvents();
+    } finally {
+      this.frameLock = false;
+    }
+  }
+
   run(): this {
     this.assertNotDisposed();
-    this.ensureStartup();
-    this.runner(this);
+    void this.ensureStartupAsync().then(() => this.runner(this));
     return this;
   }
 
-  /** Stop the browser animation loop (does not dispose plugins). */
   stop(): void {
     if (this._rafId !== null && typeof cancelAnimationFrame !== "undefined") {
       cancelAnimationFrame(this._rafId);
@@ -176,14 +264,13 @@ export class App {
     }
   }
 
-  /**
-   * Stop the runner and dispose all plugins / onDispose hooks.
-   * Idempotent.
-   */
   dispose(): void {
     if (this.disposed) return;
     this.stop();
     this.disposed = true;
+    this.parallel?.dispose();
+    this.parallel = null;
+    this.schedule.setParallelExecutor(null);
     for (let i = this.plugins.length - 1; i >= 0; i--) {
       this.plugins[i]!.dispose?.(this);
     }
@@ -199,10 +286,16 @@ export class App {
     }
   }
 
-  private ensureStartup(): void {
+  private ensureStartupSync(): void {
     if (this.started) return;
     this.started = true;
     this.schedule.run(Startup, this.world);
+  }
+
+  private async ensureStartupAsync(): Promise<void> {
+    if (this.started) return;
+    this.started = true;
+    await this.schedule.runAsync(Startup, this.world);
   }
 
   private advanceTime(time: TimeData, deltaSeconds: number): void {
