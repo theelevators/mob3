@@ -6,11 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "headless": "tsx src/headless.ts"
+    "headless": "tsx src/headless.ts",
+    "inspect": "tsx src/inspect-plan.ts"
   },
   "dependencies": {
     "mob3": "0.1.0",
+    "@mob3/input": "0.1.0",
     "@mob3/three": "0.1.0",
+    "@mob3/rapier": "0.1.0",
     "three": "^0.174.0"
   },
   "devDependencies": {

@@ -1,6 +1,14 @@
-import type { World } from "mob3";
-import { PreRender, Render, Transform } from "mob3";
-import type { App, Plugin } from "mob3";
+import type { World, App, Plugin } from "mob3";
+import {
+  PreRender,
+  Render,
+  FixedUpdate,
+  Update,
+  Transform,
+  GlobalTransform,
+  PendingDespawn,
+  system,
+} from "mob3";
 import * as THREE from "three";
 import {
   ThreeCamera,
@@ -10,27 +18,104 @@ import {
   type ThreePluginOptions,
 } from "./components.js";
 
-function syncTransforms(world: World): void {
-  for (const [, transform, three] of world.query(Transform, ThreeObject)) {
-    const obj = three.object;
-    obj.position.set(transform.x, transform.y, transform.z);
-    obj.rotation.set(transform.rx, transform.ry, transform.rz);
-    obj.scale.set(transform.sx, transform.sy, transform.sz);
-  }
-}
-
-function renderFrame(world: World): void {
-  const renderer = world.resource(ThreeRenderer);
-  const scene = world.resource(ThreeScene);
-  const camera = world.resource(ThreeCamera);
-  renderer.render(scene, camera);
-}
+type Owned = {
+  ownsRenderer: boolean;
+  resize?: () => void;
+};
 
 /**
- * Thin Three.js integration. Creates renderer/scene/camera resources
- * and registers transform sync + render systems.
+ * Flat scene sync: ECS GlobalTransform → Object3D.
+ * Three parenting is NOT authoritative; objects stay under Scene.
+ * Change-aware: only sync GlobalTransform (or Transform fallback) changed this tick.
+ */
+export const syncTransforms = system({
+  name: "syncTransforms",
+  access: {
+    read: [GlobalTransform, Transform],
+    write: [ThreeObject],
+  },
+  run(world) {
+    // Prefer changed globals; also sync newly added ThreeObject
+    for (const [, global, three] of world
+      .query(GlobalTransform, ThreeObject)
+      .changed(GlobalTransform)) {
+      applyTrs(three.object, global);
+    }
+    for (const [, global, three] of world
+      .query(GlobalTransform, ThreeObject)
+      .added(ThreeObject)) {
+      applyTrs(three.object, global);
+    }
+    // Fallback: Transform+ThreeObject without GlobalTransform yet
+    for (const [e, transform, three] of world.query(Transform, ThreeObject)) {
+      if (world.has(e, GlobalTransform)) continue;
+      if (!world.isChanged(e, Transform) && !world.isAdded(e, ThreeObject)) {
+        continue;
+      }
+      applyTrs(three.object, transform);
+    }
+  },
+});
+
+function applyTrs(
+  obj: THREE.Object3D,
+  t: {
+    x: number;
+    y: number;
+    z: number;
+    rx: number;
+    ry: number;
+    rz: number;
+    sx: number;
+    sy: number;
+    sz: number;
+  },
+): void {
+  obj.position.set(t.x, t.y, t.z);
+  obj.rotation.set(t.rx, t.ry, t.rz);
+  obj.scale.set(t.sx, t.sy, t.sz);
+}
+
+export const renderFrame = system({
+  name: "renderFrame",
+  access: {
+    resources: {
+      read: [ThreeRenderer, ThreeScene, ThreeCamera],
+    },
+  },
+  run(world) {
+    const renderer = world.resource(ThreeRenderer);
+    const scene = world.resource(ThreeScene);
+    const camera = world.resource(ThreeCamera);
+    renderer.render(scene, camera);
+  },
+});
+
+/** Detach Object3D for entities pending despawn (public PendingDespawn tag). */
+export const detachPendingThreeObjects = system({
+  name: "detachPendingThreeObjects",
+  access: {
+    read: [PendingDespawn],
+    write: [ThreeObject],
+  },
+  run(world) {
+    for (const [, three] of world.query(ThreeObject).with(PendingDespawn)) {
+      three.object.removeFromParent();
+    }
+  },
+});
+
+/**
+ * Thin Three.js integration.
+ *
+ * Ownership: objects created by the plugin are disposed on `app.dispose()`.
+ * Caller-supplied renderer/scene/camera are left alone.
  */
 export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
+  const owned: Owned = {
+    ownsRenderer: !options.renderer,
+  };
+
   return {
     build(app: App) {
       const {
@@ -83,16 +168,27 @@ export function ThreePlugin(options: ThreePluginOptions = {}): Plugin {
         };
         resize();
         window.addEventListener("resize", resize);
+        owned.resize = resize;
       }
 
       app.insertResource(ThreeRenderer, renderer);
       app.insertResource(ThreeScene, scene);
       app.insertResource(ThreeCamera, camera);
 
+      app.addSystem(FixedUpdate, detachPendingThreeObjects);
+      app.addSystem(Update, detachPendingThreeObjects);
       app.addSystem(PreRender, syncTransforms);
       app.addSystem(Render, renderFrame);
     },
+    dispose(app: App) {
+      if (owned.resize && typeof window !== "undefined") {
+        window.removeEventListener("resize", owned.resize);
+        owned.resize = undefined;
+      }
+      const renderer = app.world.tryResource(ThreeRenderer);
+      if (renderer && owned.ownsRenderer) {
+        renderer.dispose();
+      }
+    },
   };
 }
-
-export { syncTransforms, renderFrame };

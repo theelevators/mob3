@@ -50,6 +50,7 @@ function createThreeObjectType(): ComponentType<ThreeObjectData> & {
   Object.defineProperty(factory, "id", { value: id });
   Object.defineProperty(factory, "defaults", { value: defaults });
   Object.defineProperty(factory, "isTag", { value: false });
+  Object.defineProperty(factory, "name", { value: "ThreeObject" });
   factory.create = ((partial?: Partial<ThreeObjectData>) =>
     factory(partial)) as ComponentType<ThreeObjectData>["create"];
 
