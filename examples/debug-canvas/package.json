@@ -1,0 +1,19 @@
+{
+  "name": "@mob3/example-debug-canvas",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite"
+  },
+  "dependencies": {
+    "mob3": "0.1.0",
+    "@mob3/input": "0.1.0",
+    "@mob3/rapier": "0.1.0",
+    "@mob3/example-mob-arena": "0.1.0"
+  },
+  "devDependencies": {
+    "vite": "^6.2.2",
+    "typescript": "^5.8.2"
+  }
+}

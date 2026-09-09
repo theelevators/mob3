@@ -98,18 +98,19 @@ npm run bench
 
 - [Design](./docs/design.md)
 - [API experiments](./docs/api-experiments.md)
+- [Phase 2 findings](./docs/phase-2-findings.md)
+- [Phase 3 design](./docs/phase-3-design.md)
+- [Phase 3 findings](./docs/phase-3-findings.md)
 
 ## Status
 
-v0.1 vertical slice (cubes) + **Phase 2** architectural proof:
+Phase 1–3 complete:
 
-- `examples/mob-arena` — playable browser arena + headless twin
-- Deferred `Commands` (flush after each system)
-- Generational entity IDs
-- Mixed 100k-entity benchmarks (`npm run bench:mixed`)
-- Findings: [`docs/phase-2-findings.md`](./docs/phase-2-findings.md)
+- Packages: `mob3`, `@mob3/input`, `@mob3/three`, `@mob3/rapier`
+- Mob Arena composes plugins; Canvas and headless prove renderers are optional
 
 ```bash
-npm run example:arena           # browser
-npm run example:arena:headless  # no Three
+npm run example:arena           # Three
+npm run example:canvas          # Canvas 2D
+npm run example:arena:headless  # no renderer
 ```

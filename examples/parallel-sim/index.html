@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mob3 — Parallel Sim</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg0: #0c1218;
+        --bg1: #152028;
+        --ink: #e8eef4;
+        --muted: #8a9aab;
+        --accent: #3dd6c6;
+        --warn: #f0a45d;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background:
+          radial-gradient(1200px 600px at 20% -10%, #1a3340 0%, transparent 55%),
+          radial-gradient(900px 500px at 100% 20%, #243018 0%, transparent 50%),
+          var(--bg0);
+        color: var(--ink);
+        font-family: "DM Sans", sans-serif;
+        overflow: hidden;
+      }
+      #stage {
+        position: absolute;
+        inset: 0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #panel {
+        position: fixed;
+        top: 1.25rem;
+        left: 1.25rem;
+        width: min(360px, calc(100vw - 2rem));
+        padding: 1rem 1.1rem 1.15rem;
+        background: color-mix(in srgb, var(--bg1) 88%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+        backdrop-filter: blur(10px);
+      }
+      h1 {
+        margin: 0 0 0.2rem;
+        font-size: 1.35rem;
+        letter-spacing: -0.02em;
+        font-weight: 600;
+      }
+      .sub {
+        margin: 0 0 0.9rem;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
+      .row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+      }
+      button, label.select {
+        font: inherit;
+        border: 1px solid #3a4b58;
+        background: #101820;
+        color: var(--ink);
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+      }
+      button.active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      label.select {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      select {
+        font: inherit;
+        background: transparent;
+        color: var(--ink);
+        border: none;
+      }
+      #stats {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+        line-height: 1.55;
+        color: var(--muted);
+        white-space: pre;
+      }
+      #stats .hi { color: var(--accent); }
+      #stats .warn { color: var(--warn); }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="c"></canvas></div>
+    <div id="panel">
+      <h1>mob3</h1>
+      <p class="sub">Phase 5 parallel batches — numeric particle sim with sequential/parallel toggle.</p>
+      <div class="row">
+        <button id="btn-seq" class="active" type="button">Sequential</button>
+        <button id="btn-par" type="button">Parallel</button>
+      </div>
+      <div class="row">
+        <label class="select">Entities
+          <select id="count">
+            <option value="5000">5k</option>
+            <option value="20000" selected>20k</option>
+            <option value="50000">50k</option>
+            <option value="100000">100k</option>
+          </select>
+        </label>
+        <label class="select">Workers
+          <select id="workers">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="4">4</option>
+          </select>
+        </label>
+        <label class="select">Work
+          <select id="work">
+            <option value="40">cheap</option>
+            <option value="200" selected>medium</option>
+            <option value="800">expensive</option>
+          </select>
+        </label>
+      </div>
+      <div id="stats">booting…</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

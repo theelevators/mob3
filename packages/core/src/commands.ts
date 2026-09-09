@@ -4,6 +4,7 @@ import type {
   ComponentType,
 } from "./component.js";
 import type { World } from "./world.js";
+import type { DespawnOptions, SetParentOptions } from "./hierarchy.js";
 
 type SpawnOp = {
   kind: "spawn";
@@ -14,6 +15,7 @@ type SpawnOp = {
 type DespawnOp = {
   kind: "despawn";
   entity: Entity;
+  options: DespawnOptions;
 };
 
 type AddOp = {
@@ -28,21 +30,17 @@ type RemoveOp = {
   type: ComponentType;
 };
 
-type CommandOp = SpawnOp | DespawnOp | AddOp | RemoveOp;
+type SetParentOp = {
+  kind: "setParent";
+  child: Entity;
+  parent: Entity | null;
+  options: SetParentOptions;
+};
+
+type CommandOp = SpawnOp | DespawnOp | AddOp | RemoveOp | SetParentOp;
 
 /**
  * Deferred structural mutations.
- *
- * Semantics (v0.2):
- * 1. Visibility — commands apply when the buffer is flushed (after each system).
- * 2. Same-entity ops — applied in insertion order.
- * 3. Despawn then mutate — later add/remove on that entity in the same buffer
- *    are no-ops (entity is not alive after despawn is applied).
- * 4. Ordering — FIFO within a buffer.
- * 5. Stale/invalid entities — despawn/add/remove are silent no-ops.
- *
- * `spawn` reserves a generational entity id immediately so callers can
- * reference it before flush; the entity is not alive / queryable until flush.
  */
 export class Commands {
   private ops: CommandOp[] = [];
@@ -55,8 +53,14 @@ export class Commands {
     return entity;
   }
 
-  despawn(entity: Entity): void {
-    this.ops.push({ kind: "despawn", entity });
+  spawnChild(parent: Entity, ...bundle: ComponentBundleItem[]): Entity {
+    const entity = this.spawn(...bundle);
+    this.setParent(entity, parent);
+    return entity;
+  }
+
+  despawn(entity: Entity, options: DespawnOptions = {}): void {
+    this.ops.push({ kind: "despawn", entity, options });
   }
 
   add(entity: Entity, item: ComponentBundleItem): void {
@@ -67,12 +71,22 @@ export class Commands {
     this.ops.push({ kind: "remove", entity, type });
   }
 
-  /** Number of queued ops (tests / DX). */
+  setParent(
+    child: Entity,
+    parent: Entity | null,
+    options: SetParentOptions = {},
+  ): void {
+    this.ops.push({ kind: "setParent", child, parent, options });
+  }
+
+  removeParent(child: Entity): void {
+    this.setParent(child, null);
+  }
+
   get pending(): number {
     return this.ops.length;
   }
 
-  /** Apply queued ops in order, then clear the buffer. */
   flush(): void {
     const ops = this.ops;
     this.ops = [];
@@ -82,7 +96,7 @@ export class Commands {
           this.world.realizeReserved(op.entity, op.bundle);
           break;
         case "despawn":
-          this.world.despawn(op.entity);
+          this.world.despawn(op.entity, op.options);
           break;
         case "add":
           if (this.world.isAlive(op.entity)) {
@@ -91,6 +105,13 @@ export class Commands {
           break;
         case "remove":
           this.world.remove(op.entity, op.type);
+          break;
+        case "setParent":
+          if (this.world.isAlive(op.child)) {
+            if (op.parent === null || this.world.isAlive(op.parent)) {
+              this.world.setParent(op.child, op.parent, op.options);
+            }
+          }
           break;
       }
     }

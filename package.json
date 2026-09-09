@@ -7,19 +7,37 @@
     "benchmarks"
   ],
   "scripts": {
-    "build": "npm run build -w mob3 && npm run build -w @mob3/three",
+    "build": "npm run build -w mob3 && npm run build -w @mob3/assets && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
     "bench": "npm run bench -w @mob3/benchmarks",
     "bench:mixed": "npm run bench:mixed -w @mob3/benchmarks",
+    "bench:planner": "npm run bench:planner -w @mob3/benchmarks",
+    "bench:parallel": "npm run bench:parallel -w @mob3/benchmarks",
+    "bench:storage": "npm run bench:storage -w @mob3/benchmarks",
+    "bench:abi": "npm run bench:abi -w @mob3/benchmarks",
+    "bench:wasm": "npm run bench:wasm -w @mob3/benchmarks",
+    "bench:hierarchy": "npm run bench:hierarchy -w @mob3/benchmarks",
+    "bench:assets": "npm run bench:assets -w @mob3/benchmarks",
+    "bench:animation": "npm run bench:animation -w @mob3/benchmarks",
     "example:cubes": "npm run dev -w @mob3/example-cubes",
     "example:arena": "npm run dev -w @mob3/example-mob-arena",
-    "example:arena:headless": "npm run headless -w @mob3/example-mob-arena"
+    "example:arena:headless": "npm run headless -w @mob3/example-mob-arena",
+    "example:arena:inspect": "npm run inspect -w @mob3/example-mob-arena",
+    "example:canvas": "npm run dev -w @mob3/example-debug-canvas",
+    "example:parallel": "npm run dev -w @mob3/example-parallel-sim",
+    "example:hierarchy": "npm run dev -w @mob3/example-hierarchy-lab",
+    "example:hierarchy:headless": "npm run headless -w @mob3/example-hierarchy-lab",
+    "example:hangar": "npm run dev -w @mob3/example-asset-hangar",
+    "example:hangar:headless": "npm run headless -w @mob3/example-asset-hangar",
+    "example:animation": "npm run dev -w @mob3/example-animation-lab",
+    "example:animation:headless": "npm run headless -w @mob3/example-animation-lab"
   },
   "devDependencies": {
+    "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9",
-    "@types/node": "^22.13.10"
+    "wabt": "^1.0.36"
   }
 }

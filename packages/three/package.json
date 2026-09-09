@@ -23,12 +23,17 @@
   },
   "peerDependencies": {
     "mob3": "0.1.0",
+    "@mob3/assets": "0.1.0",
     "three": "^0.174.0"
   },
   "devDependencies": {
     "@types/three": "^0.174.0",
     "mob3": "0.1.0",
+    "@mob3/assets": "0.1.0",
     "three": "^0.174.0"
+  },
+  "dependencies": {
+    "@mob3/assets": "0.1.0"
   },
   "license": "MIT"
 }
