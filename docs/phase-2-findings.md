@@ -83,7 +83,8 @@ Mixed world (100k Transform / 80k Velocity / 40k Health / 20k Enemy / 10k Lifeti
 | query(Transform, Velocity).with(Enemy) 20k | ~18 ms |
 | query Renderable 1k | ~10 ms |
 | add/remove on 10k | ~11 ms |
-| one sim tick (move + enemy touch + 1k “sync”) | ~197 ms |
+| despawn 10k Lifetime entities | ~1.3 ms |
+| one sim tick (move + enemy touch + 1k “sync”) | ~225 ms |
 
 **Takeaway:** Querying 1k renderables is cheaper than full 100k scans; **ECS population ≠ draw list** works. Map-of-Maps is fine for validating architecture; not for 100k @ 60 Hz without storage work (Phase 6).
 
