@@ -29,6 +29,7 @@ Application
 | --- | --- |
 | `mob3` | Core ECS + App runtime (no Three dependency) |
 | `@mob3/three` | Thin Three.js integration plugin |
+| `@mob3/react` | Strict Mode–safe React canvas / `useMob3App` |
 
 ## Quick start
 
@@ -134,3 +135,6 @@ Transform mutations: use `world.getMut`, `world.mutate`, or `setTranslation` / `
 
 See `docs/phase-12-design.md`, `docs/cookbook-react-canvas.md`, and the BoxClub / msh-up feedback docs.
 
+## Publishing
+
+See [`docs/publishing.md`](docs/publishing.md). Run `npm run publish:check` before dry-run publishes.

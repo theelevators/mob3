@@ -9,6 +9,7 @@ export default defineConfig({
       "@mob3/input": path.resolve(__dirname, "packages/input/src/index.ts"),
       "@mob3/three": path.resolve(__dirname, "packages/three/src/index.ts"),
       "@mob3/rapier": path.resolve(__dirname, "packages/rapier/src/index.ts"),
+      "@mob3/react": path.resolve(__dirname, "packages/react/src/index.ts"),
     },
   },
   test: {

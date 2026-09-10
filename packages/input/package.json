@@ -11,7 +11,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json"
@@ -22,5 +25,17 @@
   "devDependencies": {
     "mob3": "0.1.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theelevators/mob3.git",
+    "directory": "packages/input"
+  },
+  "homepage": "https://github.com/theelevators/mob3#readme",
+  "bugs": {
+    "url": "https://github.com/theelevators/mob3/issues"
+  }
 }
