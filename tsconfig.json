@@ -1,9 +1,23 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/input" },
-    { "path": "./packages/three" },
-    { "path": "./packages/rapier" }
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/input"
+    },
+    {
+      "path": "./packages/three"
+    },
+    {
+      "path": "./packages/rapier"
+    },
+    {
+      "path": "./packages/react"
+    },
+    {
+      "path": "./packages/assets"
+    }
   ]
 }

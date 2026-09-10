@@ -7,7 +7,7 @@
     "benchmarks"
   ],
   "scripts": {
-    "build": "npm run build -w mob3 && npm run build -w @mob3/assets && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier",
+    "build": "npm run build -w mob3 && npm run build -w @mob3/assets && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier && npm run build -w @mob3/react",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
@@ -32,7 +32,9 @@
     "example:hangar": "npm run dev -w @mob3/example-asset-hangar",
     "example:hangar:headless": "npm run headless -w @mob3/example-asset-hangar",
     "example:animation": "npm run dev -w @mob3/example-animation-lab",
-    "example:animation:headless": "npm run headless -w @mob3/example-animation-lab"
+    "example:animation:headless": "npm run headless -w @mob3/example-animation-lab",
+    "publish:check": "node scripts/publish-check.mjs",
+    "example:react": "npm run dev -w @mob3/example-react-canvas"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

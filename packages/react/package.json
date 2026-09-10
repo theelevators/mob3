@@ -1,7 +1,7 @@
 {
-  "name": "@mob3/three",
+  "name": "@mob3/react",
   "version": "0.1.0",
-  "description": "Three.js integration plugin for mob3",
+  "description": "React bindings for mob3 \u2014 Strict Mode\u2013safe App lifecycle",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -10,18 +10,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./plugin": {
-      "types": "./dist/plugin_public.d.ts",
-      "import": "./dist/plugin_public.js"
-    },
-    "./gltf": {
-      "types": "./dist/gltf_public.d.ts",
-      "import": "./dist/gltf_public.js"
-    },
-    "./animation": {
-      "types": "./dist/animation_public.d.ts",
-      "import": "./dist/animation_public.js"
     },
     "./package.json": "./package.json"
   },
@@ -36,29 +24,49 @@
   },
   "peerDependencies": {
     "mob3": "0.1.0",
-    "@mob3/assets": "0.1.0",
+    "@mob3/three": "0.1.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
     "three": "^0.174.0"
+  },
+  "peerDependenciesMeta": {
+    "@mob3/three": {
+      "optional": true
+    },
+    "three": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@types/three": "^0.174.0",
     "mob3": "0.1.0",
-    "@mob3/assets": "0.1.0",
-    "three": "^0.174.0"
+    "@mob3/three": "0.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "three": "^0.174.0",
+    "@types/three": "^0.174.0"
   },
-  "dependencies": {
-    "@mob3/assets": "0.1.0"
-  },
-  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/theelevators/mob3.git",
-    "directory": "packages/three"
+    "directory": "packages/react"
   },
   "homepage": "https://github.com/theelevators/mob3#readme",
   "bugs": {
     "url": "https://github.com/theelevators/mob3/issues"
-  }
+  },
+  "license": "MIT",
+  "keywords": [
+    "mob3",
+    "ecs",
+    "react",
+    "three.js"
+  ]
 }

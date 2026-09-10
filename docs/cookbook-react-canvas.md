@@ -1,57 +1,53 @@
 # Cookbook — Canvas in React (Strict Mode safe)
 
+Prefer **`@mob3/react`** over hand-rolled effects.
+
 ```tsx
-import { useEffect, useRef } from "react";
-import { App } from "mob3";
-import { ThreePlugin, ThreeScene } from "@mob3/three/plugin";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { Update, Transform, setRotation } from "mob3";
+import { ThreeObject, ThreeScene } from "@mob3/three";
+import { Mob3Canvas } from "@mob3/react";
 import * as THREE from "three";
 
-export function Mob3Canvas({ children }: { children?: React.ReactNode }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const appRef = useRef<App | null>(null);
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <Mob3Canvas
+      three={{ syncMode: "always" }}
+      setup={(app) => {
+        const scene = app.world.resource(ThreeScene);
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(),
+          new THREE.MeshNormalMaterial(),
+        );
+        scene.add(mesh);
+        const e = app.world.spawn(Transform(), ThreeObject(mesh));
+        app.addSystem(Update, (world) => {
+          setRotation(world, e, 0, performance.now() / 1000, 0);
+        });
+      }}
+    />
+  </StrictMode>,
+);
+```
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+Or the hook:
 
-    // Strict Mode remounts once in dev — always dispose the previous app.
-    appRef.current?.dispose();
-
-    const app = new App()
-      .addPlugin(
-        ThreePlugin({
-          canvas,
-          // Small scenes / prototyping: avoid get-vs-getMut footguns
-          syncMode: "always",
-        }),
-      )
-      .run();
-
-    appRef.current = app;
-
-    // Canvas may be 0×0 on first layout — force a resize after paint.
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new Event("resize"));
-    });
-
-    return () => {
-      app.dispose();
-      if (appRef.current === app) appRef.current = null;
-    };
-  }, []);
-
-  return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
-      {children}
-    </div>
-  );
+```tsx
+function View() {
+  const { app, canvasRef } = useMob3App({
+    three: { syncMode: "always" },
+    setup(app) { /* spawn once */ },
+  });
+  return <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />;
 }
 ```
 
 ## Rules
 
-1. **Dispose on unmount** — Strict Mode double-invokes effects in dev
-2. **Don’t put the App in React state** — ref is enough
-3. **Resize after mount** — measure layout before trusting camera aspect
-4. Prefer `syncMode: "always"` until you’re sure every mutation uses `getMut` / helpers
+1. **Dispose on unmount** — `@mob3/react` handles Strict Mode double-invoke
+2. **Don’t put `App` in React state** — the hook keeps it in a ref; `app` in render is for reads only
+3. **Resize after mount** — built-in `requestResizeOnMount`
+4. Prefer `syncMode: "always"` until every mutation uses `getMut` / helpers
+
+See `examples/react-canvas`.

@@ -44,5 +44,17 @@
     "game",
     "typescript"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theelevators/mob3.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/theelevators/mob3#readme",
+  "bugs": {
+    "url": "https://github.com/theelevators/mob3/issues"
+  }
 }
