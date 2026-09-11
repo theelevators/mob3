@@ -34,6 +34,8 @@
     "example:animation": "npm run dev -w @mob3/example-animation-lab",
     "example:animation:headless": "npm run headless -w @mob3/example-animation-lab",
     "publish:check": "node scripts/publish-check.mjs",
+    "publish:dry": "node scripts/publish-packages.mjs --dry-run",
+    "publish:packages": "node scripts/publish-packages.mjs",
     "example:react": "npm run dev -w @mob3/example-react-canvas"
   },
   "devDependencies": {
