@@ -5,7 +5,7 @@ Prefer **`@mob3/react`** over hand-rolled effects.
 ```tsx
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Update, Transform, setRotation } from "mob3";
+import { Update, Transform, setRotation } from "@mob3/core";
 import { ThreeObject, ThreeScene } from "@mob3/three";
 import { Mob3Canvas } from "@mob3/react";
 import * as THREE from "three";

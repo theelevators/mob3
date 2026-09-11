@@ -1,7 +1,7 @@
 /**
  * Headless animation lab — A Run / B Idle→Run crossfade / C Walk @0.5x + attachment.
  */
-import { App, Transform, GlobalTransform, Name } from "mob3";
+import { App, Transform, GlobalTransform, Name } from "@mob3/core";
 import { AssetsPlugin, getAssets } from "@mob3/assets";
 import {
   GltfAsset,

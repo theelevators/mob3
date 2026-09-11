@@ -14,7 +14,7 @@ Object storage remains the default. Shared is opt-in and fixed-capacity.
 ## API
 
 ```ts
-import { packedComponent, f32 } from "mob3";
+import { packedComponent, f32 } from "@mob3/core";
 
 const Transform = packedComponent(
   { x: f32, y: f32, z: f32 },

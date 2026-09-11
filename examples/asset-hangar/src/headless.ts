@@ -1,7 +1,7 @@
 /**
  * Headless hangar — insert ship, instantiate 3×, despawn one, unload.
  */
-import { App, Transform } from "mob3";
+import { App, Transform } from "@mob3/core";
 import { AssetsPlugin, getAssets } from "@mob3/assets";
 import {
   GltfAsset,

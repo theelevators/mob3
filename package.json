@@ -7,7 +7,7 @@
     "benchmarks"
   ],
   "scripts": {
-    "build": "npm run build -w mob3 && npm run build -w @mob3/assets && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier && npm run build -w @mob3/react",
+    "build": "npm run build -w @mob3/core && npm run build -w @mob3/assets && npm run build -w @mob3/input && npm run build -w @mob3/three && npm run build -w @mob3/rapier && npm run build -w @mob3/react",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",

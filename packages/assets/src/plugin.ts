@@ -4,7 +4,7 @@ import {
   type App,
   type Plugin,
   type World,
-} from "mob3";
+} from "@mob3/core";
 import { Assets, AssetsApi } from "./api.js";
 import { AssetRegistry } from "./registry.js";
 import { AssetFailed, AssetReady } from "./events.js";

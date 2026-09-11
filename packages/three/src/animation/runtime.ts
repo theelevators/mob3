@@ -1,5 +1,5 @@
-import type { Entity, World } from "mob3";
-import { entityGeneration } from "mob3";
+import type { Entity, World } from "@mob3/core";
+import { entityGeneration } from "@mob3/core";
 import * as THREE from "three";
 import type { AssetHandle } from "@mob3/assets";
 import type { GltfAssetData } from "../assets/gltf.js";

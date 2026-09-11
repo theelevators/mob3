@@ -14,7 +14,7 @@ import {
   type World,
   type Entity,
   type HierarchyPreserve,
-} from "mob3";
+} from "@mob3/core";
 import {
   ThreePlugin,
   ThreeScene,

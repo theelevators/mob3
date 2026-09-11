@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { App } from "mob3";
+import { App } from "@mob3/core";
 import { SyntheticInputPlugin, InputPlugin } from "@mob3/input";
 import { initRapier, RapierPlugin, physicsBodyCount } from "@mob3/rapier";
 import { MobArenaPlugin } from "../../../examples/mob-arena/src/systems.ts";

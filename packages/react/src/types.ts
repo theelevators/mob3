@@ -1,4 +1,4 @@
-import type { App, PluginFactory } from "mob3";
+import type { App, PluginFactory } from "@mob3/core";
 import type { ThreePluginOptions } from "@mob3/three";
 
 export type Mob3AppSetup = (app: App) => void | (() => void);

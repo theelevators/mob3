@@ -4,7 +4,7 @@ import {
   type RefObject,
 } from "react";
 import { useMob3App, type UseMob3AppHookOptions } from "./useMob3App.js";
-import type { App } from "mob3";
+import type { App } from "@mob3/core";
 
 export type Mob3CanvasProps = UseMob3AppHookOptions & {
   className?: string;

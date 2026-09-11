@@ -27,14 +27,14 @@ Application
 
 | Package | Role |
 | --- | --- |
-| `mob3` | Core ECS + App runtime (no Three dependency) |
+| `@mob3/core` | Core ECS + App runtime (no Three dependency) |
 | `@mob3/three` | Thin Three.js integration plugin |
 | `@mob3/react` | Strict Mode–safe React canvas / `useMob3App` |
 
 ## Quick start
 
 ```ts
-import { App, Update, Startup, Time, component, type World } from "mob3";
+import { App, Update, Startup, Time, component, type World } from "@mob3/core";
 import { ThreePlugin, Transform, ThreeObject, ThreeScene } from "@mob3/three";
 import * as THREE from "three";
 
@@ -119,14 +119,14 @@ npm run example:arena:headless  # no renderer
 ## Install / entries (Phase 12 DX)
 
 ```bash
-npm install mob3 @mob3/three three
+npm install @mob3/core @mob3/three three
 ```
 
 | Import | What you get |
 |--------|----------------|
-| `mob3` | **Browser-safe** ECS (default) — no Node worker/`node:` pulls |
-| `mob3/parallel` | Workers + `installParallel(app)` |
-| `mob3/node` | Full Node entry |
+| `@mob3/core` | **Browser-safe** ECS (default) — no Node worker/`node:` pulls |
+| `@mob3/core/parallel` | Workers + `installParallel(app)` |
+| `@mob3/core/node` | Full Node entry |
 | `@mob3/three/plugin` | Renderer sync only |
 | `@mob3/three/gltf` | GLTF assets |
 | `@mob3/three/animation` | Animation mixer / bone attachments |

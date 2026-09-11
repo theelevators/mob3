@@ -9,7 +9,7 @@ import {
   resource,
   event,
   type Entity,
-} from "mob3";
+} from "@mob3/core";
 
 export { Transform, PendingDespawn };
 

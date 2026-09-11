@@ -21,7 +21,7 @@ import {
   sharedWasmMemoryAvailable,
   WasmMemoryArena,
   Time,
-} from "mob3";
+} from "@mob3/core";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const wasmUrl = pathToFileURL(

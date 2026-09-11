@@ -5,7 +5,7 @@ import {
   component,
   type World,
   type Entity,
-} from "mob3";
+} from "@mob3/core";
 import type { AssetHandle } from "@mob3/assets";
 import { assetsOf } from "@mob3/assets";
 import * as THREE from "three";

@@ -1,4 +1,4 @@
-import { component, resource, event, tag, type Entity } from "mob3";
+import { component, resource, event, tag, type Entity } from "@mob3/core";
 import type RAPIER from "@dimforge/rapier3d-compat";
 
 export type RigidBodyKind = "dynamic" | "kinematicPosition" | "fixed";

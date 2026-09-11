@@ -9,7 +9,7 @@ import {
   Transform,
   GlobalTransform,
   type World,
-} from "mob3";
+} from "@mob3/core";
 
 let sat = 0;
 let moonA = 0;

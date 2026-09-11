@@ -7,7 +7,7 @@ import {
   Transform,
   GlobalTransform,
   transformPropagation,
-} from "mob3";
+} from "@mob3/core";
 
 function now() {
   return performance.now();

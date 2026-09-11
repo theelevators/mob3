@@ -3,7 +3,7 @@ import {
   system,
   type App,
   type Plugin,
-} from "mob3";
+} from "@mob3/core";
 import { Input, createInputState, type KeyCode } from "./state.js";
 
 export type InputPluginOptions = {

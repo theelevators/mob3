@@ -1,4 +1,4 @@
-import { App, Startup, Update, Time, Transform, component, type World } from "mob3";
+import { App, Startup, Update, Time, Transform, component, type World } from "@mob3/core";
 import {
   ThreePlugin,
   ThreeScene,

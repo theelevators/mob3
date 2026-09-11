@@ -1,7 +1,7 @@
 /**
  * Browser Mob Arena — Input + Rapier + Three + gameplay.
  */
-import { Startup, Update, type World } from "mob3";
+import { Startup, Update, type World } from "@mob3/core";
 import { InputPlugin } from "@mob3/input";
 import { initRapier, RapierPlugin } from "@mob3/rapier";
 import {
@@ -12,7 +12,7 @@ import {
   detachPendingThreeObjects,
 } from "@mob3/three";
 import * as THREE from "three";
-import { App, FixedUpdate } from "mob3";
+import { App, FixedUpdate } from "@mob3/core";
 import { MobArenaPlugin, despawnPending } from "./systems.js";
 import {
   Transform,

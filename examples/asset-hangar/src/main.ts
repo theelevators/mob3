@@ -2,7 +2,7 @@
  * Asset Hangar — lifecycle pressure test for Phase 10.
  * Uses an inserted generated “ship” GltfAsset (no CDN).
  */
-import { App, Startup, Update, Name, Transform } from "mob3";
+import { App, Startup, Update, Name, Transform } from "@mob3/core";
 import { getAssets, AssetReady, AssetFailed } from "@mob3/assets";
 import {
   ThreePlugin,
@@ -17,7 +17,7 @@ import {
 import * as THREE from "three";
 import type { AssetHandle } from "@mob3/assets";
 import type { GltfAssetData } from "@mob3/three";
-import type { Entity } from "mob3";
+import type { Entity } from "@mob3/core";
 
 function buildShip(): THREE.Group {
   const root = new THREE.Group();

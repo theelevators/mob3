@@ -10,7 +10,7 @@ import {
   Transform,
   GlobalTransform,
   type Entity,
-} from "mob3";
+} from "@mob3/core";
 import { getAssets } from "@mob3/assets";
 import {
   ThreeAssetsPlugin,

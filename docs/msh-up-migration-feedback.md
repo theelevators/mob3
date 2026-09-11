@@ -32,7 +32,7 @@ Honest notes from adopting mob3 on an interactive audio/visual stage (stems → 
 4. **Better spawn DX** — typed `world.spawn(Transform(), ThreeObject(mesh))` without casts
 5. Docs cookbook: audio visualizer, canvas in React, minimal ThreePlugin scene
 6. Optional **always-sync** mode for small scenes (skip change-detection footgun)
-7. Tree-shakeable entrypoints (`mob3` browser, `mob3/parallel`, `@mob3/three/plugin`, …)
+7. Tree-shakeable entrypoints (`mob3` browser, `@mob3/core/parallel`, `@mob3/three/plugin`, …)
 
 ## Bottom line for other devs
 

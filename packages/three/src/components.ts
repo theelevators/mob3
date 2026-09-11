@@ -6,7 +6,7 @@ import {
   type TransformData,
   type ComponentType,
   type ComponentInstance,
-} from "mob3";
+} from "@mob3/core";
 import type { Object3D, Scene, WebGLRenderer, Camera, PerspectiveCamera } from "three";
 
 export type ThreeObjectData = {

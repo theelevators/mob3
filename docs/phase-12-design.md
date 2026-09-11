@@ -11,11 +11,11 @@ See `docs/boxclub-migration-feedback.md` and `docs/msh-up-migration-feedback.md`
 
 ## Goals (this slice)
 
-1. **Browser-safe default entry** — `import … from "mob3"` must not pull `node:` workers/wasm loaders
+1. **Browser-safe default entry** — `import … from "@mob3/core"` must not pull `node:` workers/wasm loaders
 2. **Spawn typing** — `world.spawn(Transform(), ThreeObject(mesh))` without `as never`
 3. **Auto-dirty Transform helpers** — `setTranslation` / `setScale` / `world.mutate`
 4. **`syncMode: "always"`** on `ThreePlugin` for small scenes
-5. **Subpath exports** — `mob3/parallel`, `mob3/node`, `@mob3/three/plugin` | `/gltf` | `/animation`
+5. **Subpath exports** — `@mob3/core/parallel`, `@mob3/core/node`, `@mob3/three/plugin` | `/gltf` | `/animation`
 6. **Cookbook docs** — React canvas, audio visualizer sketch, minimal scene
 
 ## Non-goals

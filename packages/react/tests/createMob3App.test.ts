@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, vi, beforeAll } from "vitest";
-import { Transform } from "mob3";
+import { Transform } from "@mob3/core";
 import { ThreeObject, ThreeScene } from "@mob3/three";
 import * as THREE from "three";
 import { createMob3App, destroyMob3App } from "../src/createMob3App.js";

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { App, FixedUpdate } from "mob3";
+import { App, FixedUpdate } from "@mob3/core";
 import { SyntheticInputPlugin, setInputMap, Input } from "@mob3/input";
 import {
   initRapier,

@@ -1,4 +1,4 @@
-import { App } from "mob3";
+import { App } from "@mob3/core";
 import { ThreePlugin, type ThreePluginOptions } from "@mob3/three";
 import type { Mob3AppHandle, UseMob3AppOptions } from "./types.js";
 

@@ -1,4 +1,4 @@
-import type { App, Plugin } from "mob3";
+import type { App, Plugin } from "@mob3/core";
 import { Assets, type AssetsPluginOptions } from "@mob3/assets";
 import { AssetsPlugin } from "@mob3/assets";
 import { createGltfLoader, GltfAsset, type GltfLoaderOptions } from "./gltf.js";

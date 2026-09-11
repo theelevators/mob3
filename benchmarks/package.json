@@ -16,7 +16,7 @@
     "bench:animation": "tsx src/animation-bench.ts"
   },
   "dependencies": {
-    "mob3": "0.1.0",
+    "@mob3/core": "0.1.0",
     "@mob3/assets": "0.1.0",
     "@mob3/three": "0.1.0",
     "three": "^0.174.0"

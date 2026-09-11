@@ -23,10 +23,10 @@
     "@dimforge/rapier3d-compat": "^0.20.0"
   },
   "peerDependencies": {
-    "mob3": "0.1.0"
+    "@mob3/core": "0.1.0"
   },
   "devDependencies": {
-    "mob3": "0.1.0"
+    "@mob3/core": "0.1.0"
   },
   "license": "MIT",
   "publishConfig": {

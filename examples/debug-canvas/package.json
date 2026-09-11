@@ -7,7 +7,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "mob3": "0.1.0",
+    "@mob3/core": "0.1.0",
     "@mob3/input": "0.1.0",
     "@mob3/rapier": "0.1.0",
     "@mob3/example-mob-arena": "0.1.0"

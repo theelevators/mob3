@@ -6,24 +6,29 @@ Default branch is **`main`** (there is no `master`). Phase 13 (`@mob3/react` + p
 
 | Package | npm name |
 |---------|----------|
-| core | `mob3` |
+| core | `@mob3/core` |
 | three | `@mob3/three` |
 | assets | `@mob3/assets` |
 | input | `@mob3/input` |
 | rapier | `@mob3/rapier` |
 | react | `@mob3/react` |
 
-Default `mob3` entry is **browser-safe**. Node workers / WASM loaders:
+Default `@mob3/core` entry is **browser-safe**. Node workers / WASM loaders:
 
-- `mob3/parallel`
-- `mob3/abi`
-- `mob3/node`
+- `@mob3/core/parallel`
+- `@mob3/core/abi`
+- `@mob3/core/node`
 
 Three splits:
 
 - `@mob3/three` / `@mob3/three/plugin`
 - `@mob3/three/gltf`
 - `@mob3/three/animation`
+
+## Why not unscoped `mob3`?
+
+npm rejects the unscoped name `mob3` as too similar to existing packages (`mobx`, `web3`).
+The publishable core package is therefore **`@mob3/core`**. Create the `@mob3` npm org once, then publish the scoped packages.
 
 ## Local first publish (clone → npm)
 
@@ -61,7 +66,7 @@ npm run publish:dry
 Or per package:
 
 ```bash
-npm publish -w mob3 --dry-run
+npm publish -w @mob3/core --dry-run
 npm publish -w @mob3/assets --dry-run
 npm publish -w @mob3/input --dry-run
 npm publish -w @mob3/three --dry-run
@@ -80,7 +85,7 @@ npm run publish:packages
 Equivalent manual sequence:
 
 ```bash
-npm publish -w mob3 --access public
+npm publish -w @mob3/core --access public
 npm publish -w @mob3/assets --access public
 npm publish -w @mob3/input --access public
 npm publish -w @mob3/three --access public
@@ -98,13 +103,13 @@ git push origin v0.1.0
 ## Consumer install
 
 ```bash
-npm install mob3 @mob3/three three
+npm install @mob3/core @mob3/three three
 # optional
 npm install @mob3/react react react-dom
 ```
 
 ```ts
-import { App } from "mob3";
+import { App } from "@mob3/core";
 import { ThreePlugin } from "@mob3/three/plugin";
 import { useMob3App, Mob3Canvas } from "@mob3/react";
 ```

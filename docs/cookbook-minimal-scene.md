@@ -1,7 +1,7 @@
 # Cookbook — Minimal ThreePlugin scene
 
 ```ts
-import { App, Transform, Update, setTranslation } from "mob3";
+import { App, Transform, Update, setTranslation } from "@mob3/core";
 import { ThreePlugin, ThreeObject, ThreeScene } from "@mob3/three/plugin";
 import * as THREE from "three";
 
@@ -31,9 +31,9 @@ app.run();
 
 | Import | Use |
 |--------|-----|
-| `mob3` | Browser-safe ECS (default) |
-| `mob3/parallel` | Workers / `installParallel` |
-| `mob3/node` | Full Node entry |
+| `@mob3/core` | Browser-safe ECS (default) |
+| `@mob3/core/parallel` | Workers / `installParallel` |
+| `@mob3/core/node` | Full Node entry |
 | `@mob3/three/plugin` | Renderer sync only |
 | `@mob3/three/gltf` | GLTF assets |
 | `@mob3/three/animation` | Mixers / bone attachments |

@@ -1,4 +1,4 @@
-import type { World } from "mob3";
+import type { World } from "@mob3/core";
 import { makeHandle, type AssetHandle } from "./handle.js";
 import { AssetFailed, AssetReady } from "./events.js";
 import type {

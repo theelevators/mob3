@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { App, Name } from "mob3";
+import { App, Name } from "@mob3/core";
 import { getAssets } from "@mob3/assets";
 import * as THREE from "three";
 import {
