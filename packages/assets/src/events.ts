@@ -1,4 +1,4 @@
-import { event } from "mob3";
+import { event } from "@mob3/core";
 import type { AssetFailedEvent, AssetReadyEvent } from "./types.js";
 
 export const AssetReady = event<AssetReadyEvent>("AssetReady");

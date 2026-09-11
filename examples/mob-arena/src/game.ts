@@ -1,7 +1,7 @@
 /**
  * Mob Arena composition helpers.
  */
-import { App, type Entity } from "mob3";
+import { App, type Entity } from "@mob3/core";
 import {
   Transform,
   Player,

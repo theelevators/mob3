@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { App } from "mob3";
+import type { App } from "@mob3/core";
 import { createMob3App, destroyMob3App } from "./createMob3App.js";
 import type { Mob3AppHandle, UseMob3AppOptions } from "./types.js";
 

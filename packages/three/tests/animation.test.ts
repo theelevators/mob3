@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { App, Update, Transform, GlobalTransform, Name } from "mob3";
+import { App, Update, Transform, GlobalTransform, Name } from "@mob3/core";
 import { AssetsPlugin, getAssets } from "@mob3/assets";
 import * as THREE from "three";
 import {

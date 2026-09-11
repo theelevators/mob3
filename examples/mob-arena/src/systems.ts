@@ -14,7 +14,7 @@ import {
   PendingDespawn,
   Transform,
   system,
-} from "mob3";
+} from "@mob3/core";
 import { Input } from "@mob3/input";
 import {
   RigidBody,

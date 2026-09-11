@@ -8,7 +8,7 @@ import {
   component,
   system,
   type SystemFn,
-} from "mob3";
+} from "@mob3/core";
 
 function now() {
   return typeof performance !== "undefined" ? performance.now() : Date.now();

@@ -12,7 +12,7 @@ import {
   resource,
   workerSystem,
   system,
-} from "mob3";
+} from "@mob3/core";
 import * as handlers from "./handlers.mjs";
 
 const Position = component({ x: 0, y: 0, z: 0 }, "Position");

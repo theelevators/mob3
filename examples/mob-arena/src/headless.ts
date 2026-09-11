@@ -1,7 +1,7 @@
 /**
  * Headless Mob Arena — SyntheticInput + Rapier + gameplay. No Three.
  */
-import { App } from "mob3";
+import { App } from "@mob3/core";
 import { SyntheticInputPlugin, setInputMap } from "@mob3/input";
 import { initRapier, RapierPlugin } from "@mob3/rapier";
 import { MobArenaPlugin, snapshotOf } from "./game.js";

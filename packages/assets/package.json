@@ -22,10 +22,10 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "mob3": "0.1.0"
+    "@mob3/core": "0.1.0"
   },
   "devDependencies": {
-    "mob3": "0.1.0"
+    "@mob3/core": "0.1.0"
   },
   "license": "MIT",
   "publishConfig": {

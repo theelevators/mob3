@@ -13,7 +13,7 @@ import {
   type Plugin,
   type World,
   type Entity,
-} from "mob3";
+} from "@mob3/core";
 import * as THREE from "three";
 import {
   AnimationPlayer,

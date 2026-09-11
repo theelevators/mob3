@@ -1,7 +1,7 @@
 # Cookbook — Audio visualizer sketch (stems as entities)
 
 ```ts
-import { App, Transform, Update, resource, component, tag, setScale } from "mob3";
+import { App, Transform, Update, resource, component, tag, setScale } from "@mob3/core";
 import { ThreePlugin, ThreeObject, ThreeScene } from "@mob3/three/plugin";
 import * as THREE from "three";
 

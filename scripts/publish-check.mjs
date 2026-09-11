@@ -35,7 +35,7 @@ if (hits.length) {
 // Soft check: parallel public may use node (that's OK — different export).
 const parallelEntry = join(root, "packages/core/dist/parallel/public.js");
 if (existsSync(parallelEntry)) {
-  console.log("publish:check: parallel entry present (Node OK on mob3/parallel)");
+  console.log("publish:check: parallel entry present (Node OK on @mob3/core/parallel)");
 }
 
 console.log("publish:check OK —", browserEntry, "has no node: imports");

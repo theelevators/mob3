@@ -1,5 +1,5 @@
 {
-  "name": "mob3",
+  "name": "@mob3/core",
   "version": "0.1.0",
   "description": "ECS application architecture for Three.js \u2014 without replacing Three.js",
   "type": "module",

@@ -8,7 +8,7 @@ import {
   type Plugin,
   type World,
   type Entity,
-} from "mob3";
+} from "@mob3/core";
 import { RAPIER, isRapierReady } from "./init.js";
 import {
   RigidBody,

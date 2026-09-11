@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { App, Startup, PreRender, Transform } from "mob3";
+import { App, Startup, PreRender, Transform } from "@mob3/core";
 import * as THREE from "three";
 import {
   ThreePlugin,

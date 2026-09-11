@@ -10,7 +10,7 @@ import {
   component,
   tag,
   Time,
-} from "mob3";
+} from "@mob3/core";
 
 const Velocity = component({ x: 1, y: 0, z: 0 });
 const Health = component({ value: 100 });

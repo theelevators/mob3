@@ -1,7 +1,7 @@
 /**
  * Headless smoke example — no Three.js required.
  */
-import { App, Update, Startup, Time, component, type World } from "mob3";
+import { App, Update, Startup, Time, component, type World } from "@mob3/core";
 
 const Position = component({ x: 0, y: 0 });
 const Velocity = component({ x: 0, y: 0 });

@@ -1,4 +1,4 @@
-import { resource, type World } from "mob3";
+import { resource, type World } from "@mob3/core";
 
 export type KeyCode = string;
 

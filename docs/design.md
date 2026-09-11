@@ -94,7 +94,7 @@ External Three mutations are not auto-imported; explicit APIs can be added later
 ## Package layout
 
 ```
-mob3/                 → packages/core (published as "mob3")
+mob3/                 → packages/core (published as "@mob3/core")
 @mob3/three           → packages/three
 ```
 

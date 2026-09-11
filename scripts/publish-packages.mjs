@@ -11,7 +11,7 @@ const dryRun = process.argv.includes("--dry-run");
 
 /** @type {string[]} workspace package names in publish order */
 const PACKAGES = [
-  "mob3",
+  "@mob3/core",
   "@mob3/assets",
   "@mob3/input",
   "@mob3/three",

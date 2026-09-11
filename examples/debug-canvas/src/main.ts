@@ -11,7 +11,7 @@ import {
   resource,
   type World,
   type Plugin,
-} from "mob3";
+} from "@mob3/core";
 import { InputPlugin } from "@mob3/input";
 import { initRapier, RapierPlugin } from "@mob3/rapier";
 import { MobArenaPlugin } from "../../mob-arena/src/systems.js";

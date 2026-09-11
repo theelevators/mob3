@@ -90,7 +90,7 @@ function movement(world: World) {
 ## Representative target usage (locked)
 
 ```ts
-import { App, Update, Startup, component, tag } from "mob3";
+import { App, Update, Startup, component, tag } from "@mob3/core";
 import { ThreePlugin, Transform, ThreeObject } from "@mob3/three";
 import * as THREE from "three";
 

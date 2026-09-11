@@ -7,7 +7,7 @@ import {
   FixedUpdate,
   formatExecutionPlan,
   planToJson,
-} from "mob3";
+} from "@mob3/core";
 import { SyntheticInputPlugin } from "@mob3/input";
 import { initRapier, RapierPlugin } from "@mob3/rapier";
 import { MobArenaPlugin } from "./systems.js";

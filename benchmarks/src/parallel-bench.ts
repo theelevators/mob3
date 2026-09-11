@@ -10,7 +10,7 @@ import {
   component,
   resource,
   workerSystem,
-} from "mob3";
+} from "@mob3/core";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const handlersUrl = pathToFileURL(

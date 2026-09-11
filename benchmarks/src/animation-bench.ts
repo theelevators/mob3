@@ -2,7 +2,7 @@
  * Phase 11 animation benches.
  * Run: npm run bench:animation
  */
-import { App, Transform, GlobalTransform, Name } from "mob3";
+import { App, Transform, GlobalTransform, Name } from "@mob3/core";
 import { AssetsPlugin, getAssets } from "@mob3/assets";
 import {
   GltfAsset,

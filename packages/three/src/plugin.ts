@@ -1,4 +1,4 @@
-import type { World, App, Plugin } from "mob3";
+import type { World, App, Plugin } from "@mob3/core";
 import {
   PreRender,
   Render,
@@ -8,7 +8,7 @@ import {
   GlobalTransform,
   PendingDespawn,
   system,
-} from "mob3";
+} from "@mob3/core";
 import * as THREE from "three";
 import {
   ThreeCamera,

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      mob3: path.resolve(__dirname, "../../packages/core/src/browser.ts"),
+      "@mob3/core": path.resolve(__dirname, "../../packages/core/src/browser.ts"),
       "@mob3/three": path.resolve(__dirname, "../../packages/three/src/index.ts"),
       "@mob3/react": path.resolve(__dirname, "../../packages/react/src/index.ts"),
     },

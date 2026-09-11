@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { App, Update } from "mob3";
+import { App, Update } from "@mob3/core";
 import {
   AssetsPlugin,
   Assets,

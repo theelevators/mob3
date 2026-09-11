@@ -1,4 +1,4 @@
-import { component, event, type Entity } from "mob3";
+import { component, event, type Entity } from "@mob3/core";
 
 /** ECS animation intent — no Three.AnimationAction. */
 export type AnimationPlayerData = {

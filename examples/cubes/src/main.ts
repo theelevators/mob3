@@ -6,7 +6,7 @@ import {
   Transform,
   component,
   type World,
-} from "mob3";
+} from "@mob3/core";
 import {
   ThreePlugin,
   ThreeScene,

@@ -1,4 +1,4 @@
-import type { Entity, World } from "mob3";
+import type { Entity, World } from "@mob3/core";
 import { AnimationPlayer } from "./components.js";
 import { animationStoreOf } from "./systems.js";
 

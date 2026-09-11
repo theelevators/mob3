@@ -1,4 +1,4 @@
-import { World, component, App, Update, Time } from "mob3";
+import { World, component, App, Update, Time } from "@mob3/core";
 
 const Position = component({ x: 0, y: 0, z: 0 });
 const Velocity = component({ x: 1, y: 0, z: 0 });

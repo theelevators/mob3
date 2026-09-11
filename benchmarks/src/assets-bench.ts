@@ -2,7 +2,7 @@
  * Phase 10 asset registry benches (deterministic fake loader).
  * Run: npm run bench:assets
  */
-import { App } from "mob3";
+import { App } from "@mob3/core";
 import {
   AssetsPlugin,
   FakeAsset,
