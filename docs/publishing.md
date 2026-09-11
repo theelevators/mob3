@@ -1,5 +1,7 @@
 # Publishing mob3 packages
 
+Default branch is **`main`** (there is no `master`). Phase 13 (`@mob3/react` + publish metadata) is already on `main`.
+
 ## Packages
 
 | Package | npm name |
@@ -23,34 +25,75 @@ Three splits:
 - `@mob3/three/gltf`
 - `@mob3/three/animation`
 
-## Pre-publish checklist
+## Local first publish (clone → npm)
+
+Do this on a machine where you can `npm login` (not the cloud agent).
+
+### 1. npm org + login (one-time)
+
+1. Create the **`@mob3` npm org** (scope ≠ GitHub org — `entasis` / GitHub can stay as-is): https://www.npmjs.com/org/create
+2. Log in:
 
 ```bash
+npm login
+npm whoami
+```
+
+### 2. Clone `main` and build
+
+```bash
+git clone https://github.com/theelevators/mob3.git
+cd mob3
+git checkout main
+npm ci
 npm run build
 npm test
 npm run typecheck
 npm run publish:check
 ```
 
-`publish:check` asserts the browser entry for `mob3` does not contain `node:` imports.
+### 3. Dry-run (optional)
 
-Dry-run (no upload):
+```bash
+npm run publish:dry
+```
+
+Or per package:
 
 ```bash
 npm publish -w mob3 --dry-run
-npm publish -w @mob3/three --dry-run
 npm publish -w @mob3/assets --dry-run
 npm publish -w @mob3/input --dry-run
+npm publish -w @mob3/three --dry-run
 npm publish -w @mob3/rapier --dry-run
 npm publish -w @mob3/react --dry-run
 ```
 
-## First publish
+### 4. Publish for real
 
-1. Ensure npm org `@mob3` exists (or change scoped names)
-2. `npm login`
-3. Publish **in dependency order**: `mob3` → `@mob3/assets` → `@mob3/input` → `@mob3/three` → `@mob3/rapier` → `@mob3/react`
-4. Tag `v0.1.0`
+**Order matters** (workspace deps):
+
+```bash
+npm run publish:packages
+```
+
+Equivalent manual sequence:
+
+```bash
+npm publish -w mob3 --access public
+npm publish -w @mob3/assets --access public
+npm publish -w @mob3/input --access public
+npm publish -w @mob3/three --access public
+npm publish -w @mob3/rapier --access public
+npm publish -w @mob3/react --access public
+```
+
+### 5. Tag the release
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## Consumer install
 
